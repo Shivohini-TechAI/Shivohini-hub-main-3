@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Stars+&+Love&display=swap');
+@font-face {
+  font-family: 'Gagalin';
+  src: url('/fonts/Gagalin-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+@layer base {
+  :root {
+    --brand-navy: #0B2D5B;
+    --brand-yellow: #F2C01A;
+    --brand-cyan: #6FE9E8;
+    --brand-dark-navy: #16376F;
+    --brand-border: #4C5A73;
+    --brand-panel: #F7F9FC;
+    --brand-text: #101828;
+  }
+}
