@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 
 export interface InvoiceListItem {
   id: string;

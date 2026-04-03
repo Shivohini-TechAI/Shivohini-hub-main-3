@@ -22,7 +22,7 @@ export const requireAuth = (req, res, next) => {
 // Register
 router.post('/register', async (req, res) => {
   const { email, password, name, role } = req.body;
-  
+
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
   try {
@@ -34,7 +34,7 @@ router.post('/register', async (req, res) => {
     const userId = crypto.randomUUID();
 
     await query('BEGIN');
-    
+
     // Insert into auth.users (mimicking Supabase Auth)
     await query(
       'INSERT INTO auth.users (id, email, encrypted_password, created_at) VALUES ($1, $2, $3, NOW())',
@@ -57,7 +57,7 @@ router.post('/register', async (req, res) => {
 
     // Generate JWT (matching Supabase format approximately)
     const token = jwt.sign({ sub: userId, email, role }, JWT_SECRET, { expiresIn: '7d' });
-    
+
     res.json({ user: { id: userId, email, role }, session: { access_token: token } });
   } catch (err) {
     await query('ROLLBACK');
@@ -76,7 +76,7 @@ router.post('/login', async (req, res) => {
 
     const user = result.rows[0];
     const match = await bcrypt.compare(password, user.encrypted_password);
-    
+
     if (!match) return res.status(401).json({ error: 'Invalid credentials' });
 
     // Try to get role from profile
@@ -84,10 +84,10 @@ router.post('/login', async (req, res) => {
     try {
       const profileInfo = await query('SELECT role FROM public.user_profiles WHERE id = $1', [user.id]);
       if (profileInfo.rows.length > 0) role = profileInfo.rows[0].role;
-    } catch(e) {}
+    } catch (e) { }
 
     const token = jwt.sign({ sub: user.id, email, role }, JWT_SECRET, { expiresIn: '7d' });
-    
+
     res.json({ user: { id: user.id, email, role }, session: { access_token: token } });
   } catch (err) {
     console.error(err);
@@ -99,10 +99,10 @@ router.post('/login', async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   // If the token is valid, req.user has the sub (uuid) Let's fetch fresh data
   try {
-     const profile = await query('SELECT * FROM public.user_profiles WHERE id = $1', [req.user.sub]);
-     res.json({ user: { id: req.user.sub, email: req.user.email, ...profile.rows[0] } });
-  } catch(e) {
-     res.json({ user: { id: req.user.sub, email: req.user.email } });
+    const profile = await query('SELECT * FROM public.user_profiles WHERE id = $1', [req.user.sub]);
+    res.json({ user: { id: req.user.sub, email: req.user.email, ...profile.rows[0] } });
+  } catch (e) {
+    res.json({ user: { id: req.user.sub, email: req.user.email } });
   }
 });
 

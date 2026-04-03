@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, CheckCircle, Circle, Calendar, User, Edit, Trash2, ClipboardList, Upload, X, File } from 'lucide-react';
 import { useProjects } from '../contexts/ProjectContext';
 import { useAuth } from '../hooks/useAuth';
-import { uploadFile, getFileUrl } from '../lib/supabase';
+import { uploadFile, getFileUrl } from '../lib/api';
 
 interface TaskListProps {
   projectId: string;

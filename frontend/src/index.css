@@ -1,7 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Stars+&+Love&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url('https://fonts.googleapis.com/css2?family=Stars+&+Love&display=swap');
 @font-face {
   font-family: 'Gagalin';
   src: url('/fonts/Gagalin-Regular.ttf') format('truetype');

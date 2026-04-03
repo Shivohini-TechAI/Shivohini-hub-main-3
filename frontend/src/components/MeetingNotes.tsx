@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Calendar, User, Edit, Trash2, FileText, Upload, X, File } from 'lucide-react';
 import { useProjects } from '../contexts/ProjectContext';
 import { useAuth } from '../hooks/useAuth';
-import { uploadFile, getFileUrl } from '../lib/supabase';
+import { uploadFile, getFileUrl } from '../lib/api';
 
 interface MeetingNotesProps {
   projectId: string;

@@ -5,6 +5,7 @@ import { query } from './db.js';
 import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
 import storageRoutes from './routes/storage.js';
+import functionsRoutes from './routes/functions.js';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/auth/v1', authRoutes); // Matching supabase auth endpoint style roughly
 app.use('/rest/v1', apiRoutes); // REST api dynamic route
 app.use('/storage/v1', storageRoutes); // Storage
+app.use('/functions/v1', functionsRoutes); // Edge Functions fallback
 
 // Static file serving for uploads
 import path from 'path';

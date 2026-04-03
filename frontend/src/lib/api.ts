@@ -1,8 +1,15 @@
-// FAKE SUPABASE CLIENT (Express Backend Adapter)
+// CUSTOM NODE/EXPRESS BACKEND SDK
+// This completely replaces Supabase! It connects to your Express API.
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 class PostgrestQueryBuilder {
-  constructor(table) {
+  table: string;
+  method: string;
+  params: URLSearchParams;
+  body: any;
+  isSingle: boolean;
+
+  constructor(table: string) {
     this.table = table;
     this.method = 'GET';
     this.params = new URLSearchParams();
@@ -10,19 +17,19 @@ class PostgrestQueryBuilder {
     this.isSingle = false;
   }
 
-  select(columns = '*') {
+  select(columns: string = '*') {
     this.method = 'GET';
     this.params.append('select', columns);
     return this;
   }
 
-  insert(data) {
+  insert(data: any) {
     this.method = 'POST';
     this.body = data;
     return this;
   }
 
-  update(data) {
+  update(data: any) {
     this.method = 'PATCH';
     this.body = data;
     return this;
@@ -33,17 +40,17 @@ class PostgrestQueryBuilder {
     return this;
   }
 
-  eq(column, value) {
+  eq(column: string, value: any) {
     this.params.append(column, `eq.${value}`);
     return this;
   }
 
-  in(column, values) {
+  in(column: string, values: any[]) {
     this.params.append(column, `in.(${values.join(',')})`);
     return this;
   }
 
-  order(column, options = { ascending: true }) {
+  order(column: string, options: { ascending?: boolean } = { ascending: true }) {
     this.params.append('order', `${column}.${options.ascending ? 'asc' : 'desc'}`);
     return this;
   }
@@ -53,21 +60,20 @@ class PostgrestQueryBuilder {
     return this;
   }
 
-  async then(resolve, reject) {
+  async then(resolve: (value: any) => void, reject?: (reason: any) => void) {
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      const token = localStorage.getItem('supabase.auth.token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const token = localStorage.getItem('api.auth.token');
       if (token) {
-        // our session format stores it as json usually depending on how we handle it
         try {
            const parsed = JSON.parse(token);
            if (parsed?.access_token) headers['Authorization'] = `Bearer ${parsed.access_token}`;
         } catch(e) {
-           headers['Authorization'] = `Bearer ${token}`; // Fallback
+           headers['Authorization'] = `Bearer ${token}`; 
         }
       }
 
-      const options = { method: this.method, headers };
+      const options: RequestInit = { method: this.method, headers };
       if (this.body) options.body = JSON.stringify(this.body);
 
       const qs = this.params.toString();
@@ -87,11 +93,11 @@ class PostgrestQueryBuilder {
   }
 }
 
-export const supabase = {
-  from: (table) => new PostgrestQueryBuilder(table),
+export const api: any = {
+  from: (table: string) => new PostgrestQueryBuilder(table),
   
   auth: {
-    async signUp({ email, password, options }) {
+    async signUp({ email, password, options }: any) {
       try {
         const res = await fetch(`${BACKEND_URL}/auth/v1/register`, {
           method: 'POST',
@@ -100,13 +106,13 @@ export const supabase = {
         });
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
-        localStorage.setItem('supabase.auth.token', data.session.access_token);
+        localStorage.setItem('api.auth.token', data.session.access_token);
         return { data: { user: data.user, session: data.session }, error: null };
       } catch (error) {
         return { data: null, error };
       }
     },
-    async signInWithPassword({ email, password }) {
+    async signInWithPassword({ email, password }: any) {
       try {
         const res = await fetch(`${BACKEND_URL}/auth/v1/login`, {
           method: 'POST',
@@ -115,19 +121,32 @@ export const supabase = {
         });
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
-        localStorage.setItem('supabase.auth.token', data.session.access_token);
+        localStorage.setItem('api.auth.token', data.session.access_token);
         return { data: { user: data.user, session: data.session }, error: null };
       } catch (error) {
         return { data: null, error };
       }
     },
     async signOut() {
-      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('api.auth.token');
       return { error: null };
     },
+    async getSession() {
+      const token = localStorage.getItem('api.auth.token');
+      if (!token) return { data: { session: null }, error: null };
+      try {
+        const res = await fetch(`${BACKEND_URL}/auth/v1/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Unauth');
+        const data = await res.json();
+        return { data: { session: { access_token: token, user: data.user } }, error: null };
+      } catch (err) {
+         return { data: { session: null }, error: null };
+      }
+    },
     async getUser() {
-       // get current user via /me
-       const token = localStorage.getItem('supabase.auth.token');
+       const token = localStorage.getItem('api.auth.token');
        if (!token) return { data: { user: null }, error: null };
        try {
          const res = await fetch(`${BACKEND_URL}/auth/v1/me`, {
@@ -140,20 +159,19 @@ export const supabase = {
          return { data: { user: null }, error: err };
        }
     },
-    onAuthStateChange(callback) {
-      // Mock this so components don't crash
+    onAuthStateChange(callback: any) {
       setTimeout(() => callback('INITIAL_SESSION', null), 100);
       return { data: { subscription: { unsubscribe: () => {} } } };
     }
   },
   
   storage: {
-    from: (bucket) => ({
-      async upload(path, file, options) {
+    from: (bucket: string) => ({
+      async upload(path: string, file: File, options?: any) {
         try {
           const form = new FormData();
           form.append('file', file);
-          const token = localStorage.getItem('supabase.auth.token');
+          const token = localStorage.getItem('api.auth.token');
           const res = await fetch(`${BACKEND_URL}/storage/v1/${bucket}/upload`, {
             method: 'POST',
             headers: token ? { 'Authorization': `Bearer ${token}` } : {},
@@ -166,26 +184,26 @@ export const supabase = {
           return { data: null, error };
         }
       },
-      getPublicUrl(path) {
+      getPublicUrl(path: string) {
         return { data: { publicUrl: `${BACKEND_URL}/storage/v1/object/public/${bucket}/${path}` } };
       },
-      async remove(paths) {
-        return { data: true, error: null }; // Mock stub
+      async remove(paths: string[]) {
+        return { data: true, error: null };
       }
     })
   }
 };
 
-export const uploadFile = async (file, bucket, path) => {
-  const { data, error } = await supabase.storage.from(bucket).upload(path, file);
+export const uploadFile = async (file: File, bucket: string, path: string) => {
+  const { data, error } = await api.storage.from(bucket).upload(path, file);
   if (error) throw error;
   return data;
 };
 
-export const getFileUrl = (bucket, path) => {
-  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+export const getFileUrl = (bucket: string, path: string) => {
+  return api.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 };
 
-export const deleteFile = async (bucket, path) => {
-  return supabase.storage.from(bucket).remove([path]);
+export const deleteFile = async (bucket: string, path: string) => {
+  return api.storage.from(bucket).remove([path]);
 };

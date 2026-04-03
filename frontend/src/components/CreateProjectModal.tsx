@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useProjects } from '../contexts/ProjectContext';
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 
 interface CreateProjectModalProps {
   onClose: () => void;
@@ -31,7 +31,7 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ onClose, onSucc
     setError('');
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await api.auth.getUser();
       if (!user) throw new Error('Not logged in');
 
       const newProject = await createProject({

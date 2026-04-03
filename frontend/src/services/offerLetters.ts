@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 
 export interface OfferLetter {
   id: string;
@@ -67,7 +67,7 @@ export const getOfferLetterById = async (id: string) => {
 };
 
 export const createOfferLetter = async (offerData: CreateOfferLetterData) => {
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData } = await api.auth.getUser();
 
   const { data, error } = await supabase
     .from('offer_letters')

@@ -14,7 +14,7 @@ const getColumns = (req) => {
 router.get('/:table', requireAuth, async (req, res) => {
   const { table } = req.params;
   const cols = getColumns(req);
-  
+
   // Basic security mappings mapping tables to user_id fields
   const userCheckFields = {
     'projects': 'created_by',
@@ -27,11 +27,11 @@ router.get('/:table', requireAuth, async (req, res) => {
   try {
     let sql = `SELECT ${cols} FROM public."${table}" WHERE 1=1`;
     let params = [];
-    
+
     // Parse ?col=eq.val
     for (const [key, val] of Object.entries(req.query)) {
       if (key === 'select') continue;
-      
+
       const vStr = String(val);
       if (vStr.startsWith('eq.')) {
         params.push(vStr.replace('eq.', ''));
@@ -48,7 +48,7 @@ router.get('/:table', requireAuth, async (req, res) => {
 
     const result = await query(sql, params);
     res.json(result.rows);
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
@@ -57,13 +57,13 @@ router.get('/:table', requireAuth, async (req, res) => {
 router.post('/:table', requireAuth, async (req, res) => {
   const { table } = req.params;
   const data = Array.isArray(req.body) ? req.body : [req.body];
-  
+
   if (data.length === 0) return res.json([]);
 
   try {
     const keys = Object.keys(data[0]);
     const cols = keys.map(k => `"${k}"`).join(', ');
-    
+
     let params = [];
     const valuesStrings = data.map((row, i) => {
       const vals = keys.map((k, j) => {
@@ -75,16 +75,16 @@ router.post('/:table', requireAuth, async (req, res) => {
 
     const sql = `INSERT INTO public."${table}" (${cols}) VALUES ${valuesStrings.join(', ')} RETURNING *`;
     const result = await query(sql, params);
-    
+
     res.json(result.rows);
-  } catch(err) {
+  } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Update & Delete follow similarly, we rely on standard Eq parsers
-router.patch('/:table', requireAuth, async (req, res) => { 
+router.patch('/:table', requireAuth, async (req, res) => {
   res.status(501).json({ error: 'Not implemented yet' });
 });
 // ... expanding in full implementation

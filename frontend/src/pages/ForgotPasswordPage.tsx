@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle, Mail, Lock } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 
 const ForgotPasswordPage: React.FC = () => {
   const [step, setStep] = useState<'email' | 'reset'>('email');
@@ -48,7 +48,7 @@ const ForgotPasswordPage: React.FC = () => {
 
     try {
       // Call our edge function to verify email exists
-      const { data, error } = await supabase.functions.invoke('verify-email', {
+      const { data, error } = await api.functions.invoke('verify-email', {
         body: { email }
       });
 
@@ -93,7 +93,7 @@ const ForgotPasswordPage: React.FC = () => {
 
     try {
       // Call our edge function to reset password
-      const { data, error } = await supabase.functions.invoke('reset-password', {
+      const { data, error } = await api.functions.invoke('reset-password', {
         body: { 
           email,
           newPassword 

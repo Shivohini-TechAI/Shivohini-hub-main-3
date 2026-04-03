@@ -30,7 +30,7 @@ async function sendDueWorkEmail() {
     try {
       const todoRes = await query(`SELECT title, due_date FROM public.personal_todos WHERE due_date = $1`, [todayIST]);
       todos = todoRes.rows;
-    } catch(e) {
+    } catch (e) {
       console.log('Skipping personal_todos (table might not exist yet limit)');
     }
 
@@ -39,7 +39,7 @@ async function sendDueWorkEmail() {
     try {
       const taskRes = await query(`SELECT title, due_date FROM public.tasks WHERE due_date = $1`, [todayIST]);
       tasks = taskRes.rows;
-    } catch(e) {
+    } catch (e) {
       console.log('Skipping tasks (table might not exist yet)');
     }
 

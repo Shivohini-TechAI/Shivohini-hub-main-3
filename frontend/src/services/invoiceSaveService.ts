@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 import type { InvoiceState, LineItem } from '../store/invoiceStore';
 import { calculateInvoiceTotals } from '../utils/invoiceMath';
 

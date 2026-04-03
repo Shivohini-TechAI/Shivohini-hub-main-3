@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
-import { supabase } from '../../lib/supabase';
+import {} from '../../lib/api';
 
 interface OfferLetterPreviewProps {
   offerData: OfferLetterData;
@@ -136,7 +136,7 @@ const OfferLetterPreview = forwardRef<OfferLetterPreviewRef, OfferLetterPreviewP
           const pdfBlob = pdf.output('blob');
           const filePath = `${offerId}/${filename}`;
 
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { data: uploadData, error: uploadError } = await api.storage
             .from('offer_letters')
             .upload(filePath, pdfBlob, {
               cacheControl: '3600',
@@ -146,7 +146,7 @@ const OfferLetterPreview = forwardRef<OfferLetterPreviewRef, OfferLetterPreviewP
           if (uploadError) throw uploadError;
 
           // Get public URL
-          const { data: urlData } = supabase.storage
+          const { data: urlData } = api.storage
             .from('offer_letters')
             .getPublicUrl(filePath);
 

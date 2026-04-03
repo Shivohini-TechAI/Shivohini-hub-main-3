@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X, User, Phone, Mail, MapPin, Tag, Calendar, CheckCircle, Plus, FileText, Trash2, Edit } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 
 interface Client {
   id: string;

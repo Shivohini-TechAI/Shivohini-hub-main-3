@@ -31,7 +31,7 @@ router.post('/:bucket/upload', requireAuth, upload.single('file'), (req, res) =>
   const bucket = req.params.bucket;
   const filePath = `${bucket}/${req.file.filename}`;
   const publicUrl = `${req.protocol}://${req.get('host')}/storage/v1/object/public/${filePath}`;
-  
+
   res.json({
     Key: filePath,
     path: filePath,

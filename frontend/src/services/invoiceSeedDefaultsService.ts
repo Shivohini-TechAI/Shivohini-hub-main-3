@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 
 export interface InvoiceSeedDefaultsConfig {
   defaultCurrency: 'INR' | 'USD' | 'AED';
@@ -238,7 +238,7 @@ export async function importPresetsFromJSON(
     }
 
     try {
-      await supabase.from('invoice_seed_defaults').insert({
+      await api.from('invoice_seed_defaults').insert({
         owner_id: userId,
         name: preset.name,
         config: preset.config,

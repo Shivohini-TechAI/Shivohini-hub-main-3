@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import {} from '../lib/api';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User {
@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('🔄 Auth init: Initializing auth...');
 
         // Get the current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await api.auth.getSession();
 
         // If there's a session error or no session, set to logged out state
         if (sessionError || !session) {
@@ -112,7 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // If profile fetch fails or no profile exists, sign out
         if (profileError || !profile) {
           console.error('❌ Auth init profile error:', profileError);
-          await supabase.auth.signOut();
+          await api.auth.signOut();
           setUser(null);
           setUsers([]);
           return;
@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('✅ Auth init: complete');
       } catch (error) {
         console.error('❌ Auth init exception:', error);
-        await supabase.auth.signOut();
+        await api.auth.signOut();
         setUser(null);
         setUsers([]);
       } finally {
@@ -171,7 +171,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
 
     // Listen for auth changes (but don't block loading)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = api.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 Auth state change:', event);
 
       if (event === 'SIGNED_IN' && session?.user) {
@@ -189,7 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (profileError || !profile) {
               console.error('❌ Auth change: Profile error', profileError);
-              await supabase.auth.signOut();
+              await api.auth.signOut();
               setUser(null);
               setUsers([]);
               return;
@@ -232,7 +232,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
           } catch (error) {
             console.error('❌ Auth change exception:', error);
-            await supabase.auth.signOut();
+            await api.auth.signOut();
             setUser(null);
             setUsers([]);
           }
@@ -322,11 +322,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Step 1: Clear any existing session
       console.log('🧹 Clearing any existing session...');
-      await supabase.auth.signOut();
+      await api.auth.signOut();
 
       // Step 2: Sign in with password
       console.log('🔑 Attempting to sign in...');
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await api.auth.signInWithPassword({
         email,
         password
       });
@@ -354,7 +354,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (profileError || !profile) {
         console.error('❌ Profile not found or error');
-        await supabase.auth.signOut();
+        await api.auth.signOut();
         setUser(null);
         return { success: false, error: 'Unable to load your profile' };
       }
@@ -400,7 +400,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error: any) {
       console.error('❌ Unexpected login error:', error);
-      await supabase.auth.signOut();
+      await api.auth.signOut();
       setUser(null);
       return { success: false, error: error.message || 'An error occurred during login' };
     }
@@ -418,7 +418,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   ): Promise<boolean> => {
     try {
       // Check if user already exists first
-      const { data: existingUser } = await supabase.auth.getUser();
+      const { data: existingUser } = await api.auth.getUser();
       if (existingUser?.user?.email === email) {
         throw new Error('User already registered with this email');
       }
@@ -431,7 +431,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await api.auth.signUp({
         email,
         password,
         options: {
@@ -496,7 +496,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      await api.auth.signOut();
       setUser(null);
     } catch (error) {
       console.error('Error during logout:', error);
@@ -548,7 +548,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      const { error } = await api.auth.admin.deleteUser(userId);
       if (error) throw error;
 
       // Refresh users list
@@ -602,7 +602,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Update email in auth if changed
       if (user?.email !== profileData.email) {
-        const { error: emailError } = await supabase.auth.updateUser({
+        const { error: emailError } = await api.auth.updateUser({
           email: profileData.email
         });
         if (emailError) throw emailError;
@@ -714,7 +714,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUserPassword = async (userId: string, newPassword: string) => {
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await api.auth.updateUser({
         password: newPassword
       });
 

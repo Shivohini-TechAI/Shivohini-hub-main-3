@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { User, AlertCircle } from "lucide-react";
-import { supabase } from "../lib/supabase";
+import {} from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 
 interface CalendarEvent {
@@ -60,8 +60,8 @@ const CalendarPage: React.FC = () => {
       const allEvents: CalendarEvent[] = [];
 
       const [tasksResult, todosResult, clientNotesResult] = await Promise.all([
-        supabase.from("tasks").select("*").not("due_date", "is", null),
-        supabase.from("personal_todos").select("*").not("due_date", "is", null),
+        api.from("tasks").select("*").not("due_date", "is", null),
+        api.from("personal_todos").select("*").not("due_date", "is", null),
         supabase
           .from("client_stage_notes")
           .select("*, clients(name)")
