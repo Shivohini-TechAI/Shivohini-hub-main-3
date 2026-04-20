@@ -17,69 +17,81 @@ const InvoiceEditor: React.FC = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        store.updateField('signatureUrl', reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      store.updateField('signatureUrl', reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ================= RESET =================
+  const handleResetToNew = async () => {
+    if (!window.confirm('Reset invoice and create new one?')) return;
+    try {
+      await store.resetToNew(user?.id);
+      toast.success('New invoice created');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to reset invoice');
     }
   };
 
-  const handleResetToNew = () => {
-    if (window.confirm('Are you sure you want to reset the invoice? All changes will be lost and a new invoice will be created.')) {
-      store.resetToNew();
+  // ================= DUPLICATE =================
+  // 🔥 Now opens a blank duplicate for admin to type invoice number
+  const handleDuplicate = async () => {
+    if (!window.confirm('Duplicate invoice?')) return;
+    try {
+      await store.duplicate();
+      toast.success('Invoice duplicated — please enter a new invoice number');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to duplicate');
     }
   };
 
-  const handleDuplicate = () => {
-    if (window.confirm('Create a duplicate invoice with a new invoice number?')) {
-      store.duplicate();
-    }
-  };
-
+  // ================= PDF =================
   const handleDownloadPDF = async () => {
     try {
-      toast.loading('Generating PDF...', { id: 'pdf-generation' });
-
+      toast.loading('Generating PDF...', { id: 'pdf' });
       await generateInvoicePDF({
         invoiceNumber: store.number,
         clientName: store.billTo.name || 'client',
         currency: store.currency,
       });
-
-      toast.success('PDF downloaded successfully!', { id: 'pdf-generation' });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF. Please try again.', { id: 'pdf-generation' });
+      toast.success('PDF downloaded', { id: 'pdf' });
+    } catch (err) {
+      console.error(err);
+      toast.error('PDF generation failed', { id: 'pdf' });
     }
   };
 
+  // ================= SAVE =================
   const handleSaveInvoice = async () => {
-    if (!user) {
-      toast.error('You must be logged in to save invoices.', { id: 'save-invoice' });
+    if (!user?.id) {
+      toast.error('Login required');
       return;
     }
-
     if (!store.billTo.name || store.lineItems.length === 0) {
-      toast.error('Please fill in client name and add at least one line item.', { id: 'save-invoice' });
+      toast.error('Client name + items required');
       return;
     }
-
+    if (!store.number.trim()) {
+      toast.error('Invoice number is required');
+      return;
+    }
     setIsSaving(true);
     try {
-      toast.loading('Saving invoice...', { id: 'save-invoice' });
-
+      toast.loading('Saving...', { id: 'save' });
       const result = await store.saveToDB(user.id);
-
       if (result.success) {
-        toast.success('Invoice saved.', { id: 'save-invoice' });
+        toast.success('Invoice saved', { id: 'save' });
       } else {
-        toast.error(result.error || 'Failed to save invoice. Please try again.', { id: 'save-invoice' });
+        toast.error(result.error || 'Save failed', { id: 'save' });
       }
-    } catch (error) {
-      console.error('Error saving invoice:', error);
-      toast.error('Failed to save invoice. Please try again.', { id: 'save-invoice' });
+    } catch (err) {
+      console.error(err);
+      toast.error('Save failed', { id: 'save' });
     } finally {
       setIsSaving(false);
     }
@@ -88,557 +100,222 @@ const InvoiceEditor: React.FC = () => {
   const calculations = store.getCalculations();
 
   return (
-    <div className="h-full overflow-y-auto bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+    <div className="h-full overflow-y-auto bg-white border-r border-gray-200">
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Invoice Editor</h2>
+
+        <h2 className="text-2xl font-bold text-gray-900">Invoice Editor</h2>
+
+        {/* ================= META ================= */}
+        <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+
+          {/* 🔥 Invoice number is now manually typed by admin */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">
+              Invoice Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={store.number}
+              onChange={(e) => store.updateField('number', e.target.value)}
+              className="w-full p-2 border rounded"
+              placeholder="e.g. INV-2026-001"
+            />
+          </div>
+
+          {/* 🔥 Only Issue Date — Due Date removed from top since it's shown below */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Issue Date</label>
+            <input
+              type="date"
+              value={store.issueDate}
+              onChange={(e) => store.updateField('issueDate', e.target.value)}
+              className="p-2 border rounded w-full"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            {(['INR', 'USD', 'AED'] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => store.updateField('currency', c)}
+                className={`flex-1 p-2 rounded ${
+                  store.currency === c ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                }`}
+              >
+                {getCurrencySymbol(c)} {c}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-6">
-          {/* Invoice Meta */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Invoice Details
-            </h3>
+        {/* ================= BILL TO ================= */}
+        <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+          <h3 className="font-semibold text-gray-700">Bill To</h3>
 
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Invoice Number
-                </label>
-                <input
-                  type="text"
-                  value={store.number}
-                  onChange={(e) => store.updateField('number', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
+          {/* 🔥 Client Name - editable */}
+          <input
+            type="text"
+            value={store.billTo.name}
+            onChange={(e) => store.updateBillTo('name', e.target.value)}
+            placeholder="Client Name *"
+            className="w-full p-2 border rounded"
+          />
+          <input
+            type="text"
+            value={store.billTo.email}
+            onChange={(e) => store.updateBillTo('email', e.target.value)}
+            placeholder="Client Email"
+            className="w-full p-2 border rounded"
+          />
+          <input
+            type="text"
+            value={store.billTo.phone}
+            onChange={(e) => store.updateBillTo('phone', e.target.value)}
+            placeholder="Client Phone"
+            className="w-full p-2 border rounded"
+          />
+          <textarea
+            value={store.billTo.address}
+            onChange={(e) => store.updateBillTo('address', e.target.value)}
+            placeholder="Client Address"
+            rows={2}
+            className="w-full p-2 border rounded"
+          />
+        </div>
 
-              <div className="grid grid-cols-2 gap-4">
+        {/* ================= BILL FROM ================= */}
+        {/* 🔥 Only company name shown, hardcoded, nothing else */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="font-semibold text-gray-700 mb-2">Bill From</h3>
+          <p className="text-gray-800 font-medium">Shivohini TechAI LLP</p>
+        </div>
+
+        {/* ================= LINE ITEMS ================= */}
+        <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-gray-700">Items</h3>
+            <button
+              onClick={store.addLineItem}
+              className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm"
+            >
+              <Plus size={16} /> Add Item
+            </button>
+          </div>
+
+          {store.lineItems.map((item) => (
+            <div key={item.id} className="border p-3 rounded space-y-2 bg-white">
+
+              {/* 🔥 Item name only - no description */}
+              <input
+                value={item.name}
+                onChange={(e) => store.updateLineItem(item.id, { name: e.target.value })}
+                placeholder="Item name"
+                className="w-full p-2 border rounded"
+              />
+
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Issue Date
-                  </label>
-                  <input
-                    type="date"
-                    value={store.issueDate}
-                    onChange={(e) => store.updateField('issueDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={store.dueDate}
-                    onChange={(e) => store.updateField('dueDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Currency
-                </label>
-                <div className="flex space-x-2">
-                  {(['INR', 'USD', 'AED'] as const).map((curr) => (
-                    <button
-                      key={curr}
-                      type="button"
-                      onClick={() => store.updateField('currency', curr)}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        store.currency === curr
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      {getCurrencySymbol(curr)} {curr}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bill From */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Bill From
-            </h3>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Company Name
-                </label>
-                <input
-                  type="text"
-                  value={store.billFrom.company}
-                  onChange={(e) => store.updateBillFrom('company', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={store.billFrom.email}
-                  onChange={(e) => store.updateBillFrom('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={store.billFrom.phone}
-                  onChange={(e) => store.updateBillFrom('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Address
-                </label>
-                <textarea
-                  value={store.billFrom.address}
-                  onChange={(e) => store.updateBillFrom('address', e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Bill To */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Bill To
-            </h3>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Client Name
-                </label>
-                <input
-                  type="text"
-                  value={store.billTo.name}
-                  onChange={(e) => store.updateBillTo('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={store.billTo.email}
-                  onChange={(e) => store.updateBillTo('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={store.billTo.phone}
-                  onChange={(e) => store.updateBillTo('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Address
-                </label>
-                <textarea
-                  value={store.billTo.address}
-                  onChange={(e) => store.updateBillTo('address', e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Line Items */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                Line Items
-              </h3>
-              <button
-                type="button"
-                onClick={() => store.addLineItem()}
-                className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Add Row</span>
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {store.lineItems.map((item, index) => (
-                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg p-3 space-y-3 border border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Item {index + 1}
-                    </span>
-                    {store.lineItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => store.removeLineItem(item.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        Item Name
-                      </label>
-                      <input
-                        type="text"
-                        value={item.name}
-                        onChange={(e) => store.updateLineItem(item.id, { name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        Description
-                      </label>
-                      <textarea
-                        value={item.description}
-                        onChange={(e) => store.updateLineItem(item.id, { description: e.target.value })}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                          Qty
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.qty}
-                          onChange={(e) => store.updateLineItem(item.id, { qty: parseInt(e.target.value) || 1 })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                          Unit Price
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.unitPrice}
-                          onChange={(e) => store.updateLineItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                          Total
-                        </label>
-                        <input
-                          type="text"
-                          value={(item.qty * item.unitPrice).toFixed(2)}
-                          readOnly
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Tax & Discount */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-              Tax & Discount
-            </h3>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Tax Rate (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={store.taxRate}
-                  onChange={(e) => store.updateField('taxRate', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Discount Type
-                </label>
-                <div className="flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => store.updateField('discountType', undefined)}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-                      !store.discountType
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    None
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => store.updateField('discountType', 'flat')}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-                      store.discountType === 'flat'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    Flat
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => store.updateField('discountType', 'percent')}
-                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-                      store.discountType === 'percent'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    Percent
-                  </button>
-                </div>
-              </div>
-
-              {store.discountType && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Discount Value {store.discountType === 'percent' ? '(%)' : ''}
-                  </label>
+                  <label className="text-xs text-gray-500">Qty</label>
                   <input
                     type="number"
-                    min="0"
-                    step="0.01"
-                    value={store.discountValue}
-                    onChange={(e) => store.updateField('discountValue', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    value={item.qty}
+                    onChange={(e) =>
+                      store.updateLineItem(item.id, { qty: parseInt(e.target.value) || 1 })
+                    }
+                    className="w-full p-2 border rounded"
+                    min={1}
                   />
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Notes */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                Notes
-              </h3>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={store.includeNotes}
-                  onChange={(e) => store.updateField('includeNotes', e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Include</span>
-              </label>
-            </div>
-
-            {store.includeNotes && (
-              <textarea
-                value={store.notes}
-                onChange={(e) => store.updateField('notes', e.target.value)}
-                rows={4}
-                placeholder="Add any additional notes or instructions..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              />
-            )}
-          </div>
-
-          {/* Terms & Conditions */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                Terms & Conditions
-              </h3>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={store.includeTerms}
-                  onChange={(e) => store.updateField('includeTerms', e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Include</span>
-              </label>
-            </div>
-
-            {store.includeTerms && (
-              <textarea
-                value={store.terms}
-                onChange={(e) => store.updateField('terms', e.target.value)}
-                rows={4}
-                placeholder="Add payment terms, conditions, and policies..."
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              />
-            )}
-          </div>
-
-          {/* Signature */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                Signature
-              </h3>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={store.includeSignature}
-                  onChange={(e) => store.updateField('includeSignature', e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Include</span>
-              </label>
-            </div>
-
-            {store.includeSignature && (
-              <div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="block w-full text-sm text-gray-600 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50"
-                />
-                {store.signatureUrl && (
-                  <div className="mt-2">
-                    <img src={store.signatureUrl} alt="Signature" className="h-16 object-contain" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Summary */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-3">
-              Invoice Summary
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {formatCurrency(calculations.subtotal, store.currency)}
-                </span>
-              </div>
-              {store.discountType && store.discountValue > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Discount {store.discountType === 'percent' ? `(${store.discountValue}%)` : ''}:
-                  </span>
-                  <span className="font-medium text-red-600 dark:text-red-400">
-                    -{formatCurrency(calculations.discountAmount, store.currency)}
-                  </span>
+                <div>
+                  <label className="text-xs text-gray-500">Unit Price</label>
+                  <input
+                    type="number"
+                    value={item.unitPrice}
+                    onChange={(e) =>
+                      store.updateLineItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })
+                    }
+                    className="w-full p-2 border rounded"
+                  />
                 </div>
-              )}
-              {store.taxRate > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Tax ({store.taxRate}%):</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {formatCurrency(calculations.taxAmount, store.currency)}
-                  </span>
+
+                <div>
+                  <label className="text-xs text-gray-500">Total</label>
+                  <input
+                    readOnly
+                    value={(item.qty * item.unitPrice).toFixed(2)}
+                    className="w-full p-2 bg-gray-100 rounded"
+                  />
                 </div>
-              )}
-              <div className="flex justify-between pt-2 border-t border-gray-300 dark:border-gray-600">
-                <span className="text-base font-bold text-gray-900 dark:text-gray-100">Total Due:</span>
-                <span className="text-base font-bold text-blue-600 dark:text-blue-400">
-                  {formatCurrency(calculations.totalDue, store.currency)}
-                </span>
               </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={handleSaveInvoice}
-              disabled={isSaving}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg transition-all shadow-lg disabled:cursor-not-allowed"
-            >
-              <Save className="h-4 w-4" />
-              <span>{isSaving ? 'Saving...' : 'Save Invoice'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownloadPDF}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all shadow-lg"
-            >
-              <Download className="h-4 w-4" />
-              <span>Download PDF</span>
-            </button>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={handleDuplicate}
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              >
-                <Copy className="h-4 w-4" />
-                <span>Duplicate</span>
-              </button>
 
               <button
-                type="button"
-                onClick={handleResetToNew}
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                onClick={() => store.removeLineItem(item.id)}
+                className="text-red-500 flex items-center gap-1 text-sm"
               >
-                <RotateCcw className="h-4 w-4" />
-                <span>New</span>
+                <Trash2 size={14} /> Remove
               </button>
             </div>
+          ))}
+        </div>
 
-            <div className="text-xs text-gray-500 dark:text-gray-400 text-center flex items-center justify-center space-x-1">
-              <FileText className="h-3 w-3" />
-              <span>Autosaved to browser storage</span>
+        {/* ================= SUMMARY ================= */}
+        <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>{formatCurrency(calculations.subtotal, store.currency)}</span>
+          </div>
+          {store.taxRate > 0 && (
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Tax ({store.taxRate}%)</span>
+              <span>{formatCurrency(calculations.taxAmount, store.currency)}</span>
             </div>
+          )}
+          <div className="flex justify-between font-bold border-t pt-2">
+            <span>Total</span>
+            <span>{formatCurrency(calculations.totalDue, store.currency)}</span>
           </div>
         </div>
+
+        {/* ================= ACTIONS ================= */}
+        <div className="space-y-2">
+
+          <button
+            onClick={handleSaveInvoice}
+            disabled={isSaving}
+            className="w-full bg-blue-600 text-white p-3 rounded flex items-center justify-center gap-2"
+          >
+            <Save size={16} /> {isSaving ? 'Saving...' : 'Save Invoice'}
+          </button>
+
+          <button
+            onClick={handleDownloadPDF}
+            className="w-full bg-green-600 text-white p-3 rounded flex items-center justify-center gap-2"
+          >
+            <Download size={16} /> Download PDF
+          </button>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleDuplicate}
+              className="bg-gray-200 p-2 rounded flex items-center justify-center gap-1 text-sm"
+            >
+              <Copy size={16} /> Duplicate
+            </button>
+
+            <button
+              onClick={handleResetToNew}
+              className="bg-red-200 p-2 rounded flex items-center justify-center gap-1 text-sm"
+            >
+              <RotateCcw size={16} /> New
+            </button>
+          </div>
+
+          <div className="text-xs text-center text-gray-500 flex justify-center gap-1">
+            <FileText size={12} /> Autosaved
+          </div>
+        </div>
+
       </div>
     </div>
   );

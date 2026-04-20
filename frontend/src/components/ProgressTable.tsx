@@ -1,82 +1,125 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 import { useProjects } from '../contexts/ProjectContext';
 import { useAuth } from '../hooks/useAuth';
+
+const API = "http://localhost:5000";
+
+interface ProgressStep {
+  id: string;
+  step: string;
+  responsible: string;
+  startDate: string;
+  endDate: string;
+  status: 'not_started' | 'ongoing' | 'completed';
+}
 
 interface ProgressTableProps {
   projectId: string;
 }
 
 const ProgressTable: React.FC<ProgressTableProps> = ({ projectId }) => {
-  const { projects, addProgressStep, updateProgressStep, deleteProgressStep } = useProjects();
-  const { user, getAllUsers } = useAuth();
+  const { projects } = useProjects();
+  const { user } = useAuth();
+
+  const [steps, setSteps] = useState<ProgressStep[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = useState<ProgressStep>({
+    id: '',
     step: '',
     responsible: '',
     startDate: '',
     endDate: '',
-    status: 'not_started' as const
+    status: 'not_started'
   });
 
   const project = projects.find(p => p.id === projectId);
-  const allUsers = getAllUsers();
 
-  if (!project) return null;
+  const canEdit =
+    user?.role === 'admin' ||
+    user?.role === 'project_manager' ||
+    user?.role === 'team_leader' ||
+    project?.createdBy === user?.id;
 
-  const canEdit = user?.role === 'admin' || user?.role === 'project_manager' || user?.role === 'team_leader' || project.createdBy === user?.id;
+  // 🔥 LOAD STEPS
+  useEffect(() => {
+    const loadSteps = async () => {
+      try {
+        const res = await fetch(`${API}/progress/${projectId}`);
+        const data = await res.json();
+        setSteps(data || []);
+      } catch (err) {
+        console.error("Failed to load steps", err);
+      }
+    };
 
+    loadSteps();
+  }, [projectId]);
+
+  // 🔥 SAVE / UPDATE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     try {
       if (editingId) {
-        await updateProgressStep(editingId, formData);
-        setEditingId(null);
+        await fetch(`${API}/progress/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData)
+        });
       } else {
-        await addProgressStep(projectId, formData);
-        setShowAddForm(false);
+        await fetch(`${API}/progress`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...formData, projectId })
+        });
       }
-      setFormData({ step: '', responsible: '', startDate: '', endDate: '', status: 'not_started' });
-    } catch (error) {
-      console.error('Error saving progress step:', error);
+
+      // reload
+      const res = await fetch(`${API}/progress/${projectId}`);
+      const data = await res.json();
+      setSteps(data);
+
+      setEditingId(null);
+      setShowAddForm(false);
+
+      setFormData({
+        id: '',
+        step: '',
+        responsible: '',
+        startDate: '',
+        endDate: '',
+        status: 'not_started'
+      });
+
+    } catch (err) {
+      console.error("Save failed", err);
     }
   };
 
-  const handleEdit = (step: any) => {
+  // 🔥 DELETE
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this step?")) return;
+
+    await fetch(`${API}/progress/${id}`, { method: "DELETE" });
+
+    setSteps(prev => prev.filter(s => s.id !== id));
+  };
+
+  // 🔥 EDIT
+  const handleEdit = (step: ProgressStep) => {
     setEditingId(step.id);
-    setFormData({
-      step: step.step,
-      responsible: step.responsible,
-      startDate: step.startDate,
-      endDate: step.endDate,
-      status: step.status
-    });
+    setFormData(step);
     setShowAddForm(true);
   };
 
-  const handleDelete = (stepId: string) => {
-    if (window.confirm('Are you sure you want to delete this progress step?')) {
-      deleteProgressStep(stepId);
-    }
-  };
-
-  const getUserName = (userId: string) => {
-    const user = allUsers.find(u => u.id === userId);
-    return user?.name || 'Unknown User';
-  };
-
-  const formatDate = (dateString: string) => {
-    return dateString ? new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }) : '-';
-  };
+  const formatDate = (d: string) =>
+    d ? new Date(d).toLocaleDateString() : "-";
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'not_started': return 'bg-gray-100 text-gray-800';
       case 'ongoing': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -85,200 +128,130 @@ const ProgressTable: React.FC<ProgressTableProps> = ({ projectId }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Progress Tracking</h3>
+
+      {/* HEADER */}
+      <div className="flex justify-between">
+        <h3 className="text-lg font-semibold">Progress Tracking</h3>
+
         {canEdit && (
           <button
             onClick={() => setShowAddForm(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            <span>Add Step</span>
+            Add Step
           </button>
         )}
       </div>
 
+      {/* FORM */}
       {showAddForm && (
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Project Step
-              </label>
-              <input
-                type="text"
-                value={formData.step}
-                onChange={(e) => setFormData(prev => ({ ...prev, step: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                placeholder="Enter step description..."
-                required
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Responsible Person
-                </label>
-                <select
-                  value={formData.responsible}
-                  onChange={(e) => setFormData(prev => ({ ...prev, responsible: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  required
-                >
-                  <option value="">Select person</option>
-                  {allUsers.map(user => (
-                    <option key={user.id} value={user.id}>{user.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Status
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="not_started">Not Started</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                type="submit"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
-              >
-                {editingId ? 'Update Step' : 'Add Step'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setEditingId(null);
-                  setFormData({ step: '', responsible: '', startDate: '', endDate: '', status: 'not_started' });
-                }}
-                className="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
+        <form onSubmit={handleSubmit} className="bg-gray-50 p-4 rounded-lg space-y-3">
+
+          <input
+            value={formData.step}
+            onChange={(e) => setFormData(p => ({ ...p, step: e.target.value }))}
+            placeholder="Step"
+            className="w-full p-2 border rounded"
+            required
+          />
+
+          <input
+            value={formData.responsible}
+            onChange={(e) => setFormData(p => ({ ...p, responsible: e.target.value }))}
+            placeholder="Responsible"
+            className="w-full p-2 border rounded"
+          />
+
+          <div className="flex gap-2">
+            <input type="date"
+              value={formData.startDate}
+              onChange={(e) => setFormData(p => ({ ...p, startDate: e.target.value }))}
+              className="p-2 border rounded w-full"
+            />
+
+            <input type="date"
+              value={formData.endDate}
+              onChange={(e) => setFormData(p => ({ ...p, endDate: e.target.value }))}
+              className="p-2 border rounded w-full"
+            />
+          </div>
+
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData(p => ({ ...p, status: e.target.value as any }))}
+            className="p-2 border rounded w-full"
+          >
+            <option value="not_started">Not Started</option>
+            <option value="ongoing">Ongoing</option>
+            <option value="completed">Completed</option>
+          </select>
+
+          <div className="flex gap-2">
+            <button className="bg-blue-600 text-white px-4 py-2 rounded">
+              {editingId ? "Update" : "Add"}
+            </button>
+
+            <button type="button"
+              onClick={() => {
+                setShowAddForm(false);
+                setEditingId(null);
+              }}
+              className="bg-gray-300 px-4 py-2 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+
+        </form>
       )}
 
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-        {project.progressSteps.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <TrendingUp className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-            <p>No progress steps yet</p>
-            {canEdit && (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-              >
-                Add the first step
-              </button>
-            )}
+      {/* TABLE */}
+      <div className="bg-white rounded shadow">
+        {steps.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <TrendingUp className="h-10 w-10 mx-auto mb-2" />
+            No progress yet
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Project Step
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Responsible
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Start Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    End Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th>Step</th>
+                <th>Responsible</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Status</th>
+                {canEdit && <th />}
+              </tr>
+            </thead>
+
+            <tbody>
+              {steps.map(step => (
+                <tr key={step.id}>
+                  <td>{step.step}</td>
+                  <td>{step.responsible}</td>
+                  <td>{formatDate(step.startDate)}</td>
+                  <td>{formatDate(step.endDate)}</td>
+                  <td>
+                    <span className={`px-2 py-1 rounded ${getStatusColor(step.status)}`}>
+                      {step.status}
+                    </span>
+                  </td>
+
                   {canEdit && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <td>
+                      <Edit onClick={() => handleEdit(step)} />
+                      <Trash2 onClick={() => handleDelete(step.id)} />
+                    </td>
                   )}
                 </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {project.progressSteps.map((step) => (
-                  <tr key={step.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{step.step}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{getUserName(step.responsible)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{formatDate(step.startDate)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">{formatDate(step.endDate)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(step.status)} dark:bg-opacity-20`}>
-                        {step.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    {canEdit && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEdit(step)}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(step.id)}
-                            className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
+
     </div>
   );
 };

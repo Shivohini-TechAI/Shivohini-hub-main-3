@@ -1,29 +1,78 @@
 import express from 'express';
+import { query } from '../db.js';
 
 const router = express.Router();
 
-router.post('/validate-role-code', (req, res) => {
-  const { code } = req.body;
-  if (!code) return res.json({ error: 'Code is required' });
+router.post('/validate-role-code', async (req, res) => {
+  console.log("📩 VALIDATE ROLE CODE HIT:", req.body); // ✅ DEBUG
 
-  // Basic mock mapping for Shivohini Hub roles
-  const mockRoles = {
-    'ADMIN2025': 'admin',
-    'PM2025': 'project_manager',
-    'TL2025': 'team_leader',
-    'TM2025': 'team_member'
-  };
+  try {
+    const { code } = req.body;
 
-  const role = mockRoles[code.toUpperCase()];
-  if (role) {
-    res.json({ valid: true, role });
-  } else {
-    // If it's something else, fall back to testing
-    if (code === 'TEST') {
-      res.json({ valid: true, role: 'team_member' });
-    } else {
-      res.json({ error: 'Invalid role code' });
+    if (!code || !code.trim()) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Code is required'
+      });
     }
+
+    const trimmedCode = code.trim().toUpperCase();
+
+    const result = await query(
+      `SELECT * FROM signup_codes WHERE code = $1`,
+      [trimmedCode]
+    );
+
+    const signupCode = result.rows[0];
+
+    // ❌ Not found
+    if (!signupCode) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Invalid role code'
+      });
+    }
+
+    // ❌ Inactive
+    if (!signupCode.is_active) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Code is inactive'
+      });
+    }
+
+    // ❌ Expired
+    if (signupCode.expires_at && new Date(signupCode.expires_at) < new Date()) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Code expired'
+      });
+    }
+
+    // ❌ Usage limit
+    if (
+      signupCode.max_uses &&
+      signupCode.current_uses >= signupCode.max_uses
+    ) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Usage limit reached'
+      });
+    }
+
+    // ✅ SUCCESS
+    return res.json({
+      valid: true,
+      role: signupCode.role
+    });
+
+  } catch (error) {
+    console.error('❌ Validate Role Code Error:', error);
+
+    return res.status(500).json({
+      valid: false,
+      error: 'Server error'
+    });
   }
 });
 

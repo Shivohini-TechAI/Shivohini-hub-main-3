@@ -1,13 +1,22 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+const API = "http://localhost:5000";
+
 interface GeneratePDFOptions {
   invoiceNumber: string;
   clientName: string;
   currency: string;
+  invoiceId?: string;
 }
 
+// 🔥 FIXED: skip fetch if already base64
 async function loadImageAsBase64(url: string): Promise<string> {
+  // If already base64, return as-is
+  if (url.startsWith('data:')) {
+    return url;
+  }
+
   return new Promise((resolve, reject) => {
     fetch(url)
       .then((response) => response.blob())
@@ -23,34 +32,59 @@ async function loadImageAsBase64(url: string): Promise<string> {
   });
 }
 
+async function uploadPDF(invoiceId: string, blob: Blob) {
+  const formData = new FormData();
+  formData.append("pdf", blob, "invoice.pdf");
+
+  const res = await fetch(`${API}/invoice-pdf/${invoiceId}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to upload PDF");
+  }
+
+  return res.json();
+}
+
 export async function generateInvoicePDF(options: GeneratePDFOptions): Promise<void> {
-  const { invoiceNumber, clientName, currency } = options;
+  const { invoiceNumber, clientName, currency, invoiceId } = options;
 
   const invoiceElement = document.getElementById('invoice-preview');
   if (!invoiceElement) {
     throw new Error('Invoice preview element not found');
   }
 
-  // Convert all images to base64
+  // 🔥 FIXED: only fetch images that are actual URLs, skip base64
   const images = invoiceElement.querySelectorAll('img');
   await Promise.all(
     Array.from(images).map(async (img) => {
       if (img instanceof HTMLImageElement) {
         try {
-          let imgUrl = img.src;
+          const src = img.src;
+
+          // Skip if already base64
+          if (src.startsWith('data:')) return;
+
+          // Skip if empty
+          if (!src) return;
+
+          let imgUrl = src;
           if (!imgUrl.startsWith('http')) {
             imgUrl = `${window.location.origin}${imgUrl}`;
           }
+
           const base64 = await loadImageAsBase64(imgUrl);
           img.src = base64;
         } catch (error) {
           console.error('Failed to load image:', img.src, error);
+          // Don't throw — just skip this image
         }
       }
     })
   );
 
-  // Use html2canvas to capture the invoice as an image
   const canvas = await html2canvas(invoiceElement, {
     scale: 2,
     useCORS: true,
@@ -63,30 +97,23 @@ export async function generateInvoicePDF(options: GeneratePDFOptions): Promise<v
 
   const imgData = canvas.toDataURL('image/png');
 
-  // A4 dimensions in mm
   const pdfWidth = 210;
   const pdfHeight = 297;
 
-  // Calculate dimensions to fit the canvas onto A4
-  const imgWidth = canvas.width;
-  const imgHeight = canvas.height;
-  const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+  const imgWidthMm = (canvas.width / 2) * 0.264583;
+  const imgHeightMm = (canvas.height / 2) * 0.264583;
 
-  const scaledWidth = imgWidth * ratio;
-  const scaledHeight = imgHeight * ratio;
-
-  // Center the image on the page
+  const ratio = Math.min(pdfWidth / imgWidthMm, pdfHeight / imgHeightMm);
+  const scaledWidth = imgWidthMm * ratio;
+  const scaledHeight = imgHeightMm * ratio;
   const x = (pdfWidth - scaledWidth) / 2;
-  const y = 0;
 
-  // Create PDF
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
   });
 
-  // Set metadata
   pdf.setProperties({
     title: invoiceNumber,
     subject: `Invoice for ${clientName}`,
@@ -94,13 +121,32 @@ export async function generateInvoicePDF(options: GeneratePDFOptions): Promise<v
     creator: 'Shivohini-Hub Invoice System',
   });
 
-  // Add image to PDF
-  pdf.addImage(imgData, 'PNG', x, y, scaledWidth, scaledHeight);
+  // 🔥 Multi-page support
+  let yOffset = 0;
+  let page = 0;
+  while (yOffset < scaledHeight) {
+    if (page > 0) pdf.addPage();
+    pdf.addImage(imgData, 'PNG', x, -yOffset, scaledWidth, scaledHeight);
+    yOffset += pdfHeight;
+    page++;
+  }
 
-  // Generate filename
-  const safeClientName = (clientName || 'client').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const safeClientName = (clientName || 'client')
+    .replace(/[^a-z0-9]/gi, '_')
+    .toLowerCase();
+
   const filename = `${invoiceNumber}-${safeClientName}-${currency}.pdf`;
 
-  // Download
+  const pdfBlob = pdf.output("blob");
+
+  if (invoiceId) {
+    try {
+      await uploadPDF(invoiceId, pdfBlob);
+      console.log("✅ PDF uploaded successfully");
+    } catch (err) {
+      console.error("❌ PDF upload failed:", err);
+    }
+  }
+
   pdf.save(filename);
 }

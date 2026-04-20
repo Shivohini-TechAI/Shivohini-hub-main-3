@@ -1,25 +1,11 @@
-import {} from '../lib/api';
+import api from "../lib/api";
 
-interface CreateAppreciationCertificatePayload {
-  recipient_name: string;
-  designation?: string;
-  appreciation_for: string;
-  issue_date: string;
-  created_by: string;
-}
+export const createAppreciationCertificate = async (payload: any) => {
+  const res = await api.post("/api/appreciation-certificates", payload);
+  return res.data;
+};
 
-export const createAppreciationCertificate = async (
-  payload: CreateAppreciationCertificatePayload
-) => {
-  const { data, error } = await supabase
-    .from('appreciation_certificates')
-    .insert([payload])
-    .select()
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
+export const getAppreciationCertificates = async () => {
+  const res = await api.get("/api/appreciation-certificates");
+  return res.data;
 };

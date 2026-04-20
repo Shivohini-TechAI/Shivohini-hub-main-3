@@ -8,16 +8,37 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
+  // ⏳ WAIT UNTIL AUTH LOADS
+  if (loading) {
+    return (
+      <div className="text-white text-center mt-10">
+        Loading...
+      </div>
+    );
+  }
+
+  // ❌ NOT LOGGED IN
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  // ❌ ROLE NOT ALLOWED
   if (requiredRole && !requiredRole.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+
+    // 🔁 Redirect based on role
+    const roleRedirect: Record<string, string> = {
+      admin: "/admin",
+      project_manager: "/pm",
+      team_leader: "/tl",
+      team_member: "/tm"
+    };
+
+    return <Navigate to={roleRedirect[user.role] || "/dashboard"} replace />;
   }
 
+  // ✅ ACCESS ALLOWED
   return <>{children}</>;
 };
 

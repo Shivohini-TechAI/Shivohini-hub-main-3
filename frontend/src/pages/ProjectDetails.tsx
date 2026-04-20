@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Users, GitBranch, CreditCard as Edit, Archive, Trash2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Archive, CheckCircle, Users, GitBranch, Calendar, ExternalLink, X, Search } from 'lucide-react';
 import { useProjects } from '../contexts/ProjectContext';
 import { useAuth } from '../hooks/useAuth';
 import MeetingNotes from '../components/MeetingNotes';
@@ -8,25 +8,37 @@ import TaskList from '../components/TaskList';
 import ProgressTable from '../components/ProgressTable';
 import CostingTable from '../components/CostingTable';
 import ClientPayments from '../components/ClientPayments';
-import DeploymentLinkField from '../components/DeploymentLinkField';
+
+const API = "http://localhost:5000";
 
 const ProjectDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, updateProject, deleteProject, archiveProject, completeProject } = useProjects();
-  const { user, getAllUsers } = useAuth();
-  const [activeTab, setActiveTab] = useState<'notes' | 'tasks' | 'progress' | 'costing' | 'payments'>('notes');
-  const [isEditing, setIsEditing] = useState(false);
-  const [showArchiveModal, setShowArchiveModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const { projects, updateProject, archiveProject, completeProject } = useProjects();
+  const { user } = useAuth();
+
+  const [activeModule, setActiveModule] = useState<'overview' | 'tasks' | 'notes' | 'progress' | 'costing' | 'payments'>('overview');
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
-  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [completionNote, setCompletionNote] = useState('');
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [projectTasks, setProjectTasks] = useState<any[]>([]);
+
+  // 🔥 Project search within page
+  const [projectSearch, setProjectSearch] = useState('');
+  const allActiveProjects = projects.filter(p => !p.archivedAt);
+  const searchedProjects = projectSearch.trim()
+    ? allActiveProjects.filter(p =>
+        p.title.toLowerCase().includes(projectSearch.toLowerCase())
+      )
+    : [];
+
   const [editData, setEditData] = useState({
     title: '',
     description: '',
     clientRequirement: '',
-    status: 'not_started' as const,
+    status: 'not_started' as any,
     endDate: '',
     githubUrl: '',
     deploymentLink: '',
@@ -45,65 +57,119 @@ const ProjectDetails: React.FC = () => {
         endDate: project.endDate || '',
         githubUrl: project.githubUrl || '',
         deploymentLink: project.deploymentLink || '',
-        assignedMembers: project.assignedMembers
+        assignedMembers: project.assignedMembers || []
       });
     }
   }, [project]);
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API}/users`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        setAllUsers(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load users:", err);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    const fetchProjectTasks = async () => {
+      if (!id) return;
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API}/tasks?projectId=${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setProjectTasks(Array.isArray(data) ? data.filter((t: any) => t.project_id === id) : []);
+      } catch (err) {
+        console.error("Failed to load project tasks:", err);
+      }
+    };
+    fetchProjectTasks();
+  }, [id]);
+
   if (!project) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Project Not Found</h2>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          Back to Dashboard
-        </button>
+      <div className="max-w-6xl mx-auto">
+        {/* 🔥 Search for project by name when not found */}
+        <div className="mb-6">
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4">
+            <ArrowLeft className="h-5 w-5" /> Back to Dashboard
+          </button>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Search for a Project</h2>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search project by name..."
+                value={projectSearch}
+                onChange={e => setProjectSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+            {searchedProjects.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {searchedProjects.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => navigate(`/project/${p.id}`)}
+                    className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+                  >
+                    <p className="font-medium text-gray-900">{p.title}</p>
+                    <p className="text-sm text-gray-500 line-clamp-1">{p.description}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+            {projectSearch && searchedProjects.length === 0 && (
+              <p className="mt-3 text-gray-400 text-sm">No projects found matching "{projectSearch}"</p>
+            )}
+          </div>
+        </div>
       </div>
     );
   }
 
   const canEdit = user?.role === 'admin' || user?.role === 'project_manager' || project.createdBy === user?.id;
+  const assignedUsers = allUsers.filter(u => (project.assignedMembers || []).includes(u.id));
+  const completedTasks = projectTasks.filter(t => t.completed);
+  const pendingTasks = projectTasks.filter(t => !t.completed);
+  const today = new Date().toISOString().split('T')[0];
+  const overdueTasks = pendingTasks.filter(t => t.due_date && t.due_date < today);
 
-  const canEditDeploymentLink = user?.role === 'admin' ||
-                                 user?.role === 'project_manager' ||
-                                 user?.role === 'team_leader';
-
-  const handleSaveEdit = () => {
-    updateProject(project.id, {
-      ...editData,
-      githubUrl: editData.githubUrl || undefined,
-      deploymentLink: editData.deploymentLink || undefined
-    });
-    setIsEditing(false);
-  };
-
-  const handleUpdateDeploymentLink = async (newLink: string) => {
-    await updateProject(project.id, { deploymentLink: newLink });
-  };
-
-  const handleArchive = () => {
-    archiveProject(project.id);
-    setShowArchiveModal(false);
-    navigate('/dashboard');
-  };
-
-  const handleDelete = () => {
-    deleteProject(project.id);
-    setShowDeleteModal(false);
-    navigate('/dashboard');
-  };
-
-  const handleComplete = () => {
-    if (!completionNote.trim()) {
-      alert('Please enter completion notes before marking the project as completed.');
-      return;
+  const handleSaveEdit = async () => {
+    try {
+      await updateProject(project.id, editData);
+      setShowEditModal(false);
+    } catch (err) {
+      console.error("Update failed:", err);
     }
-    
-    completeProject(project.id, completionNote);
-    setShowCompleteModal(false);
-    setCompletionNote('');
+  };
+
+  const handleArchive = async () => {
+    try {
+      await archiveProject(project.id);
+      navigate('/archive');
+    } catch (err) {
+      console.error("Archive failed:", err);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!completionNote.trim()) return;
+    try {
+      await completeProject(project.id, completionNote);
+      setShowCompleteModal(false);
+    } catch (err) {
+      console.error("Complete failed:", err);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -115,392 +181,412 @@ const ProjectDetails: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  const formatDate = (d?: string) =>
+    d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+  const modules = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'tasks', label: `Tasks (${projectTasks.length})` },
+    { key: 'notes', label: 'Notes' },
+    { key: 'progress', label: 'Progress' },
+    { key: 'costing', label: 'Costing' },
+    { key: 'payments', label: 'Payments' },
+  ];
 
   return (
-    <div className="max-w-6xl mx-auto min-h-screen">
-      <div className="mb-6">
+    <div className="max-w-6xl mx-auto">
+
+      {/* Header */}
+      <div className="flex items-center gap-4 mb-4">
         <button
           onClick={() => navigate('/dashboard')}
-          className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 mb-4 transition-colors"
+          className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back to Dashboard</span>
+          <ArrowLeft className="h-5 w-5" />
         </button>
 
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-white/20 dark:border-gray-700/50">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              {isEditing ? (
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    value={editData.title}
-                    onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-                    className="text-2xl font-bold text-gray-900 dark:text-gray-100 w-full border-b-2 border-gray-300 dark:border-gray-600 focus:border-purple-500 outline-none bg-transparent"
-                  />
-                  <textarea
-                    value={editData.description}
-                    onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-                    className="text-gray-600 dark:text-gray-300 w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700"
-                    rows={3}
-                  />
-                  <textarea
-                    value={editData.clientRequirement}
-                    onChange={(e) => setEditData(prev => ({ ...prev, clientRequirement: e.target.value }))}
-                    placeholder="Client Requirements"
-                    className="text-gray-600 dark:text-gray-300 w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700"
-                    rows={3}
-                  />
-                  <div className="flex items-center space-x-4">
-                    <select
-                      value={editData.status}
-                      onChange={(e) => setEditData(prev => ({ ...prev, status: e.target.value as any }))}
-                      className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    >
-                      <option value="not_started">Not Started</option>
-                      <option value="ongoing">Ongoing</option>
-                    </select>
-                    <input
-                      type="date"
-                      value={editData.endDate}
-                      onChange={(e) => setEditData(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      placeholder="End Date"
-                    />
-                    <input
-                      type="url"
-                      value={editData.githubUrl}
-                      onChange={(e) => setEditData(prev => ({ ...prev, githubUrl: e.target.value }))}
-                      className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      placeholder="GitHub URL"
-                    />
-                    <input
-                      type="url"
-                      value={editData.deploymentLink}
-                      onChange={(e) => setEditData(prev => ({ ...prev, deploymentLink: e.target.value }))}
-                      className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      placeholder="Deployment Link"
-                    />
+        {/* 🔥 Search by project name inline */}
+        {/* <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search project by name..."
+            value={projectSearch}
+            onChange={e => setProjectSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {projectSearch && searchedProjects.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+              {searchedProjects.slice(0, 5).map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => { navigate(`/project/${p.id}`); setProjectSearch(''); }}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                >
+                  <p className="font-medium text-gray-900">{p.title}</p>
+                  <p className="text-xs text-gray-400 capitalize">{p.status.replace('_', ' ')}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div> */}
+
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
+          <p className="text-gray-500 text-sm">{project.description}</p>
+        </div>
+        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(project.status)}`}>
+          {project.status.replace('_', ' ')}
+        </span>
+      </div>
+
+      {/* Action Buttons */}
+      {canEdit && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <Edit className="h-4 w-4" /> Edit Project
+          </button>
+          {project.status !== 'completed' && (
+            <button
+              onClick={() => setShowCompleteModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+            >
+              <CheckCircle className="h-4 w-4" /> Mark Complete
+            </button>
+          )}
+          <button
+            onClick={() => setShowArchiveConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+          >
+            <Archive className="h-4 w-4" /> Archive
+          </button>
+        </div>
+      )}
+
+      {/* Module Tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 overflow-x-auto">
+        {modules.map(mod => (
+          <button
+            key={mod.key}
+            onClick={() => setActiveModule(mod.key as any)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              activeModule === mod.key
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            {mod.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Module Content */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+
+        {activeModule === 'overview' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-900">Project Details</h3>
+
+                {project.clientRequirement && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Client Requirement</p>
+                    <p className="text-sm text-gray-800 bg-gray-50 rounded-lg p-3">{project.clientRequirement}</p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={handleSaveEdit}
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setShowTeamModal(true)}
-                      className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
-                    >
-                      Manage Team
-                    </button>
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                )}
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Status</p>
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                      {project.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">End Date</p>
+                    <p className="text-gray-800 flex items-center gap-1 text-sm">
+                      <Calendar className="h-3 w-3" /> {formatDate(project.endDate)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Created</p>
+                    <p className="text-gray-800 text-sm">{formatDate(project.createdAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Last Updated</p>
+                    <p className="text-gray-800 text-sm">{formatDate(project.updatedAt)}</p>
                   </div>
                 </div>
-              ) : (
-                <>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{project.title}</h1>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">{project.description}</p>
-                  {project.clientRequirement && (
-                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Client Requirements:</h3>
-                      <p className="text-blue-800 dark:text-blue-200 text-sm whitespace-pre-wrap">{project.clientRequirement}</p>
-                    </div>
-                  )}
-                  
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                      <Calendar className="h-3 w-3 mr-1" />
-                      {project.status.replace('_', ' ').toUpperCase()}
-                    </span>
-                    
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                      <Users className="h-4 w-4 mr-1" />
-                      {(project.assignedMembers || []).length} members
-                    </div>
-                    
-                    {project.endDate && (
-                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        Due: {formatDate(project.endDate)}
+
+                {project.githubUrl && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">GitHub</p>
+                    <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700">
+                      <GitBranch className="h-3 w-3" /> {project.githubUrl}
+                    </a>
+                  </div>
+                )}
+
+                {project.deploymentLink && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Deployment</p>
+                    <a href={project.deploymentLink} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700">
+                      <ExternalLink className="h-3 w-3" /> {project.deploymentLink}
+                    </a>
+                  </div>
+                )}
+
+                {project.completionNote && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-1">Completion Note</p>
+                    <p className="text-sm text-gray-800 bg-green-50 rounded-lg p-3">{project.completionNote}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Team */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4" /> Team ({assignedUsers.length})
+                </h3>
+                <div className="space-y-2">
+                  {assignedUsers.length === 0 ? (
+                    <p className="text-gray-400 text-sm">No members assigned</p>
+                  ) : (
+                    assignedUsers.map(u => (
+                      <div key={u.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                        <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          {u.name?.charAt(0)?.toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{u.name}</p>
+                          <p className="text-xs text-gray-500 capitalize">{u.role?.replace('_', ' ')}</p>
+                        </div>
                       </div>
-                    )}
-                    
-                    {project.githubUrl && (
-                      <a
-                        href={project.githubUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center text-sm text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                      >
-                        <GitBranch className="h-4 w-4 mr-1" />
-                        GitHub Repository
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <DeploymentLinkField
-                      deploymentLink={project.deploymentLink}
-                      canEdit={canEditDeploymentLink}
-                      onUpdate={handleUpdateDeploymentLink}
-                      variant="full"
-                    />
-                  </div>
-
-                  <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                    Created on {formatDate(project.createdAt)}
-                  </div>
-                </>
-              )}
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
-            {!isEditing && canEdit && (
-              <div className="flex items-center space-x-2">
-                {project.status !== 'completed' && (
-                  <button
-                    onClick={() => setShowCompleteModal(true)}
-                    className="p-2 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                    title="Mark as Completed"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                  title="Edit Project"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                {!project.archivedAt && (
-                  <button
-                    onClick={() => setShowArchiveModal(true)}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
-                    title="Archive Project"
-                  >
-                    <Archive className="h-4 w-4" />
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  title="Delete Project"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+            {/* Task Summary */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-3">Task Summary</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4 text-center cursor-pointer hover:bg-blue-100" onClick={() => setActiveModule('tasks')}>
+                  <p className="text-2xl font-bold text-blue-600">{projectTasks.length}</p>
+                  <p className="text-sm text-gray-600">Total</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 text-center cursor-pointer hover:bg-green-100" onClick={() => setActiveModule('tasks')}>
+                  <p className="text-2xl font-bold text-green-600">{completedTasks.length}</p>
+                  <p className="text-sm text-gray-600">Completed</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 text-center cursor-pointer hover:bg-red-100" onClick={() => setActiveModule('tasks')}>
+                  <p className="text-2xl font-bold text-red-600">{overdueTasks.length}</p>
+                  <p className="text-sm text-gray-600">Overdue</p>
+                </div>
+              </div>
+            </div>
+
+            {pendingTasks.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Pending Tasks</h3>
+                <div className="space-y-2">
+                  {pendingTasks.slice(0, 5).map(task => (
+                    <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-gray-800">{task.title}</span>
+                      {task.due_date && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${task.due_date < today ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {task.due_date < today ? 'Overdue' : `Due ${formatDate(task.due_date)}`}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {pendingTasks.length > 5 && (
+                    <button onClick={() => setActiveModule('tasks')} className="text-sm text-blue-600 hover:text-blue-700">
+                      View all {pendingTasks.length} tasks →
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
-        </div>
+        )}
+
+        {activeModule === 'tasks' && <TaskList projectId={project.id} />}
+        {activeModule === 'notes' && <MeetingNotes projectId={project.id} />}
+        {activeModule === 'progress' && <ProgressTable projectId={project.id} />}
+        {activeModule === 'costing' && <CostingTable projectId={project.id} />}
+        {activeModule === 'payments' && <ClientPayments projectId={project.id} />}
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-sm border border-white/20 dark:border-gray-700/50">
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex space-x-8 px-6">
-            <button
-              onClick={() => setActiveTab('notes')}
-              className={`py-4 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'notes'
-                  ? 'border-purple-500 text-purple-600 dark:text-purple-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Meeting Notes ({project.meetingNotes.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`py-4 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'tasks'
-                  ? 'border-purple-500 text-purple-600 dark:text-purple-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              To-Do List ({project.tasks.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('progress')}
-              className={`py-4 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'progress'
-                  ? 'border-purple-500 text-purple-600 dark:text-purple-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Progress ({project.progressSteps.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('costing')}
-              className={`py-4 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'costing'
-                  ? 'border-purple-500 text-purple-600 dark:text-purple-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Costing to Scale ({project.costingItems?.length || 0})
-            </button>
-            {user?.role === 'admin' && (
-              <button
-                onClick={() => setActiveTab('payments')}
-                className={`py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'payments'
-                    ? 'border-purple-500 text-purple-600 dark:text-purple-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
-              >
-                Client Payments ({project.clientPayments?.length || 0})
-              </button>
-            )}
-          </nav>
-        </div>
-
-        <div className="p-6">
-          {activeTab === 'notes' && <MeetingNotes projectId={project.id} />}
-          {activeTab === 'tasks' && <TaskList projectId={project.id} />}
-          {activeTab === 'progress' && <ProgressTable projectId={project.id} />}
-          {activeTab === 'costing' && <CostingTable projectId={project.id} />}
-          {activeTab === 'payments' && <ClientPayments projectId={project.id} />}
-        </div>
-      </div>
-
-      {/* Archive Confirmation Modal */}
-      {showArchiveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-white/20 dark:border-gray-700/50">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Archive Project</h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Are you sure you want to archive this project? This will pause the project and move it to the archive section.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowArchiveModal(false)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleArchive}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-              >
-                Archive Project
-              </button>
+      {/* EDIT MODAL */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Edit Project</h2>
+              <button onClick={() => setShowEditModal(false)}><X className="h-5 w-5 text-gray-400" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <input
+                  value={editData.title}
+                  onChange={e => setEditData(p => ({ ...p, title: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={editData.description}
+                  onChange={e => setEditData(p => ({ ...p, description: e.target.value }))}
+                  rows={3}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Requirement</label>
+                <textarea
+                  value={editData.clientRequirement}
+                  onChange={e => setEditData(p => ({ ...p, clientRequirement: e.target.value }))}
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={editData.status}
+                    onChange={e => setEditData(p => ({ ...p, status: e.target.value as any }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="not_started">Not Started</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={editData.endDate}
+                    onChange={e => setEditData(p => ({ ...p, endDate: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GitHub URL</label>
+                <input
+                  value={editData.githubUrl}
+                  onChange={e => setEditData(p => ({ ...p, githubUrl: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="https://github.com/..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deployment Link</label>
+                <input
+                  value={editData.deploymentLink}
+                  onChange={e => setEditData(p => ({ ...p, deploymentLink: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assign Team Members</label>
+                <div className="border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
+                  {allUsers.map(u => (
+                    <label key={u.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editData.assignedMembers.includes(u.id)}
+                        onChange={() => setEditData(p => ({
+                          ...p,
+                          assignedMembers: p.assignedMembers.includes(u.id)
+                            ? p.assignedMembers.filter(mid => mid !== u.id)
+                            : [...p.assignedMembers, u.id]
+                        }))}
+                        className="rounded"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{u.name}</p>
+                        <p className="text-xs text-gray-500 capitalize">{u.role?.replace('_', ' ')}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4 border-t">
+                <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button onClick={handleSaveEdit} className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700">
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-white/20 dark:border-gray-700/50">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Delete Project</h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Are you sure you want to delete this project? This action cannot be undone and all project data will be permanently lost.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Delete Project
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Complete Project Modal */}
+      {/* COMPLETE MODAL */}
       {showCompleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-white/20 dark:border-gray-700/50">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Complete Project</h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Please provide completion notes before marking this project as completed:
-            </p>
-            <textarea
-              value={completionNote}
-              onChange={(e) => setCompletionNote(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              rows={4}
-              placeholder="Enter completion notes, achievements, and final remarks..."
-              required
-            />
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCompleteModal(false);
-                  setCompletionNote('');
-                }}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl w-96 p-6 space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Mark Project as Complete</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Completion Note <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={completionNote}
+                onChange={e => setCompletionNote(e.target.value)}
+                rows={3}
+                placeholder="Describe what was accomplished..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCompleteModal(false)} className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-gray-700">
                 Cancel
               </button>
               <button
                 onClick={handleComplete}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={!completionNote.trim()}
+                className="flex-1 bg-green-600 text-white rounded-lg px-4 py-2 hover:bg-green-700 disabled:opacity-50"
               >
-                Complete Project
+                Confirm Complete
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Team Management Modal */}
-      {showTeamModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 border border-white/20 dark:border-gray-700/50">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Manage Team Members</h3>
-            <div className="max-h-64 overflow-y-auto">
-              {getAllUsers().filter(u => u.role === 'team_member' || u.role === 'team_leader').map((member) => (
-                <label key={member.id} className="flex items-center space-x-2 py-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editData.assignedMembers.includes(member.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setEditData(prev => ({
-                          ...prev,
-                          assignedMembers: [...prev.assignedMembers, member.id]
-                        }));
-                      } else {
-                        setEditData(prev => ({
-                          ...prev,
-                          assignedMembers: prev.assignedMembers.filter(id => id !== member.id)
-                        }));
-                      }
-                    }}
-                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{member.name} ({member.email})</span>
-                </label>
-              ))}
-            </div>
-            <div className="flex justify-end space-x-3 mt-6">
+      {/* ARCHIVE CONFIRM */}
+      {showArchiveConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl w-96 p-6 space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Archive Project?</h2>
+            <p className="text-sm text-gray-600">This project will be moved to the Archive page. You can restore or terminate it from there.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowArchiveConfirm(false)} className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-gray-700">
+                Cancel
+              </button>
               <button
-                onClick={() => setShowTeamModal(false)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                onClick={() => { setShowArchiveConfirm(false); handleArchive(); }}
+                className="flex-1 bg-orange-500 text-white rounded-lg px-4 py-2 hover:bg-orange-600"
               >
-                Close
+                Archive
               </button>
             </div>
           </div>

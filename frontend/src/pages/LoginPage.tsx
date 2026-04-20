@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import * as AuthHook from "../hooks/useAuth";
+
+console.log("🔥 AuthHook import:", AuthHook);
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -51,9 +54,9 @@ const LoginPage: React.FC = () => {
           <div className="text-center mb-8">
             <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center mb-4 overflow-hidden">
               <img 
-                src="/Real_Logo_V1.png" 
-                alt="Shivohini TechAI Logo" 
-                className="w-full h-full object-contain"
+                src="/Logo_withoutBG.png"
+                alt="Company Logo"
+                style={{ height: "80px", width: "auto" }}
               />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Shivohini-Hub</h1>
@@ -129,7 +132,7 @@ const LoginPage: React.FC = () => {
               disabled={loading}
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 rounded-lg font-medium focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Login'}
             </button>
           </form>
 

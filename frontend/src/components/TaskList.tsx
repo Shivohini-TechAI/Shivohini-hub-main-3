@@ -1,368 +1,226 @@
-import React, { useState } from 'react';
-import { Plus, CheckCircle, Circle, Calendar, User, Edit, Trash2, ClipboardList, Upload, X, File } from 'lucide-react';
-import { useProjects } from '../contexts/ProjectContext';
+import React, { useState, useEffect } from 'react';
+import { Plus, CheckCircle, Circle, Calendar, Edit, Trash2, ClipboardList } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { uploadFile, getFileUrl } from '../lib/api';
 
 interface TaskListProps {
   projectId: string;
 }
 
+const API = "http://localhost:5000";
+
 const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
-  const { projects, addTask, updateTask, deleteTask } = useProjects();
-  const { user, getAllUsers } = useAuth();
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    assignedTo: '',
-    dueDate: '',
-    completed: false,
-    files: [] as File[]
-  });
-  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({ title: '', assignedTo: '', dueDate: '' });
 
-  const project = projects.find(p => p.id === projectId);
-  const allUsers = getAllUsers();
+  const token = localStorage.getItem("token");
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 
-  if (!project) return null;
-
-  const canCreate = user?.role === 'admin' || user?.role === 'project_manager' || user?.role === 'team_leader' || project.createdBy === user?.id || project.assignedMembers.includes(user?.id || '');
-  const canEdit = user?.role === 'admin' || user?.role === 'project_manager' || user?.role === 'team_leader';
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSaveTask();
-  };
-
-  const handleSaveTask = async () => {
-    setUploading(true);
+  const fetchTasks = async () => {
     try {
-      let uploadedFiles = [];
-      
-      // Upload files to Supabase
-      for (const file of formData.files) {
-        try {
-          const uploadResult = await uploadFile(file, 'project-files', `tasks/${projectId}`);
-          const fileUrl = getFileUrl('project-files', uploadResult.filePath);
-          
-          uploadedFiles.push({
-            id: uploadResult.fileName,
-            name: file.name,
-            url: fileUrl,
-            type: file.type,
-            size: file.size,
-            uploadedAt: new Date().toISOString(),
-            path: uploadResult.filePath
-          });
-        } catch (uploadError) {
-          console.error('Error uploading file:', uploadError);
-          // Continue with other files even if one fails
-        }
+      const res = await fetch(`${API}/tasks?projectId=${projectId}`, { headers });
+      const data = await res.json();
+      setTasks(Array.isArray(data) ? data.filter(t => t.project_id === projectId) : []);
+    } catch (err) {
+      console.error("Fetch tasks error:", err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API}/users`, { headers });
+      const data = await res.json();
+      setAllUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Fetch users error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+    fetchUsers();
+  }, [projectId]);
+
+  const handleSave = async () => {
+    if (!formData.title.trim()) return;
+    try {
+      if (editingId) {
+        await fetch(`${API}/tasks/${editingId}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ title: formData.title, assignedTo: formData.assignedTo || null, dueDate: formData.dueDate || null })
+        });
+      } else {
+        await fetch(`${API}/tasks`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ projectId, title: formData.title, assignedTo: formData.assignedTo || null, dueDate: formData.dueDate || null })
+        });
       }
-
-    if (editingId) {
-      await updateTask(editingId, {
-        title: formData.title,
-        assignedTo: formData.assignedTo,
-        dueDate: formData.dueDate,
-        completed: formData.completed
-      });
+      setFormData({ title: '', assignedTo: '', dueDate: '' });
       setEditingId(null);
-    } else {
-      await addTask(projectId, {
-        title: formData.title,
-        assignedTo: formData.assignedTo,
-        dueDate: formData.dueDate,
-        completed: formData.completed
-      });
       setShowAddForm(false);
-    }
-    setFormData({ title: '', assignedTo: '', dueDate: '', completed: false, files: [] });
-    } catch (error) {
-      console.error('Error saving task:', error);
-    } finally {
-      setUploading(false);
+      fetchTasks();
+    } catch (err) {
+      console.error("Save task error:", err);
     }
   };
 
-  const handleEdit = (task: any) => {
-    setEditingId(task.id);
-    setFormData({
-      title: task.title,
-      assignedTo: task.assignedTo,
-      dueDate: task.dueDate,
-      completed: task.completed,
-      files: []
-    });
-    setShowAddForm(true);
-  };
-
-  const handleDelete = (taskId: string) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      deleteTask(taskId);
+  const handleToggle = async (task: any) => {
+    try {
+      await fetch(`${API}/tasks/${task.id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ title: task.title, completed: !task.completed, assignedTo: task.assigned_to, dueDate: task.due_date })
+      });
+      fetchTasks();
+    } catch (err) {
+      console.error("Toggle error:", err);
     }
   };
 
-  const handleToggleComplete = (taskId: string, completed: boolean) => {
-    updateTask(taskId, { completed: !completed });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setFormData(prev => ({
-        ...prev,
-        files: [...prev.files, ...newFiles]
-      }));
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this task?")) return;
+    try {
+      await fetch(`${API}/tasks/${id}`, { method: "DELETE", headers });
+      fetchTasks();
+    } catch (err) {
+      console.error("Delete error:", err);
     }
   };
 
-  const removeFile = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      files: prev.files.filter((_, i) => i !== index)
-    }));
-  };
+  const getUserName = (userId: string) => allUsers.find(u => u.id === userId)?.name || userId;
+  const formatDate = (d: string) => new Date(d).toLocaleDateString();
+  const today = new Date().toISOString().split('T')[0];
 
-  const getUserName = (userId: string) => {
-    const user = allUsers.find(u => u.id === userId);
-    return user?.name || 'Unassigned';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const isOverdue = (dueDate: string) => {
-    return new Date(dueDate) < new Date() && dueDate !== '';
-  };
+  const completed = tasks.filter(t => t.completed);
+  const pending = tasks.filter(t => !t.completed);
+  const overdue = pending.filter(t => t.due_date && t.due_date < today);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">To-Do List</h3>
-        {canCreate && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add To-Do</span>
-          </button>
-        )}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-900">Tasks</h3>
+        <button
+          onClick={() => { setShowAddForm(true); setEditingId(null); setFormData({ title: '', assignedTo: '', dueDate: '' }); }}
+          className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700"
+        >
+          <Plus className="h-4 w-4" /> Add Task
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-blue-50 rounded-lg p-3 text-center">
+          <p className="text-lg font-bold text-blue-600">{tasks.length}</p>
+          <p className="text-xs text-gray-500">Total</p>
+        </div>
+        <div className="bg-green-50 rounded-lg p-3 text-center">
+          <p className="text-lg font-bold text-green-600">{completed.length}</p>
+          <p className="text-xs text-gray-500">Done</p>
+        </div>
+        <div className="bg-red-50 rounded-lg p-3 text-center">
+          <p className="text-lg font-bold text-red-600">{overdue.length}</p>
+          <p className="text-xs text-gray-500">Overdue</p>
+        </div>
       </div>
 
       {showAddForm && (
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                To-Do Title
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                placeholder="Enter to-do title..."
-                required
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Assign To
-                </label>
-                <select
-                  value={formData.assignedTo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="">Select team member</option>
-                  {allUsers.map(user => (
-                    <option key={user.id} value={user.id}>{user.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Due Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Attachments
-              </label>
-              <div className="space-y-2">
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="task-file-upload"
-                  accept="image/*,.pdf,.doc,.docx,.txt"
-                />
-                <label
-                  htmlFor="task-file-upload"
-                  className="flex items-center justify-center w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                >
-                  <Upload className="h-4 w-4 mr-2 text-gray-400" />
-                  <span className="text-sm text-gray-600">Upload files</span>
-                </label>
-                
-                {formData.files.length > 0 && (
-                  <div className="space-y-1">
-                    {formData.files.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-600 px-3 py-2 rounded">
-                        <div className="flex items-center space-x-2">
-                          <File className="h-4 w-4 text-gray-400 dark:text-gray-300" />
-                          <span className="text-sm text-gray-700 dark:text-gray-200">{file.name}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(index)}
-                          className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                type="submit"
-                disabled={uploading}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all shadow-lg"
-              >
-                {uploading ? 'Saving...' : editingId ? 'Update To-Do' : 'Add To-Do'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setEditingId(null);
-                  setFormData({ title: '', assignedTo: '', dueDate: '', completed: false, files: [] });
-                }}
-                className="bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+          <input
+            value={formData.title}
+            onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
+            placeholder="Task title *"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              value={formData.assignedTo}
+              onChange={e => setFormData(p => ({ ...p, assignedTo: e.target.value }))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Assign to...</option>
+              {allUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={formData.dueDate}
+              onChange={e => setFormData(p => ({ ...p, dueDate: e.target.value }))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleSave} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+              {editingId ? 'Update' : 'Add'}
+            </button>
+            <button onClick={() => { setShowAddForm(false); setEditingId(null); }} className="bg-gray-200 px-4 py-2 rounded-lg text-sm hover:bg-gray-300">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="space-y-3">
-        {project.tasks.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <ClipboardList className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p>No to-dos yet</p>
-            {canCreate && (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="mt-2 text-blue-600 hover:text-blue-800"
-              >
-                Add the first to-do
-              </button>
-            )}
-          </div>
-        ) : (
-          project.tasks
-            .sort((a, b) => {
-              if (a.completed !== b.completed) return a.completed ? 1 : -1;
-              return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-            })
-            .map((task) => (
-              <div key={task.id} className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 ${task.completed ? 'opacity-75' : ''}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <button
-                      onClick={() => handleToggleComplete(task.id, task.completed)}
-                      className={`mt-1 ${task.completed ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400'}`}
-                    >
-                      {task.completed ? (
-                        <CheckCircle className="h-5 w-5" />
-                      ) : (
-                        <Circle className="h-5 w-5" />
-                      )}
-                    </button>
-                    <div className="flex-1">
-                      <h4 className={`font-medium ${task.completed ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
-                        {task.title}
-                      </h4>
-                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center space-x-1">
-                          <User className="h-4 w-4" />
-                          <span>{getUserName(task.assignedTo)}</span>
-                        </div>
-                        {task.dueDate && (
-                          <div className={`flex items-center space-x-1 ${isOverdue(task.dueDate) && !task.completed ? 'text-red-600 dark:text-red-400' : ''}`}>
-                            <Calendar className="h-4 w-4" />
-                            <span>{formatDate(task.dueDate)}</span>
-                            {isOverdue(task.dueDate) && !task.completed && (
-                              <span className="text-red-600 dark:text-red-400 font-medium">(Overdue)</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {task.files && task.files.length > 0 && (
-                      <div className="mt-2 pt-2 border-t">
-                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Attachments:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {task.files.map((file) => (
-                            <a
-                              key={file.id}
-                              href={file.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded"
-                            >
-                              <File className="h-3 w-3" />
-                              <span>{file.name}</span>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
+      {tasks.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">
+          <ClipboardList className="h-10 w-10 mx-auto mb-2" />
+          <p>No tasks yet</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {tasks.map(task => (
+            <div
+              key={task.id}
+              className={`flex items-start justify-between p-3 rounded-lg border ${
+                task.completed ? 'bg-green-50 border-green-200' :
+                task.due_date && task.due_date < today ? 'bg-red-50 border-red-200' :
+                'bg-white border-gray-200'
+              }`}
+            >
+              <div className="flex items-start gap-3 flex-1">
+                <button onClick={() => handleToggle(task)} className="mt-0.5 flex-shrink-0">
+                  {task.completed
+                    ? <CheckCircle className="h-5 w-5 text-green-600" />
+                    : <Circle className="h-5 w-5 text-gray-400" />}
+                </button>
+                <div>
+                  <p className={`text-sm font-medium ${task.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                    {task.title}
+                  </p>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                    {task.assigned_to && <span>👤 {getUserName(task.assigned_to)}</span>}
+                    {task.due_date && (
+                      <span className={`flex items-center gap-1 ${task.due_date < today && !task.completed ? 'text-red-600' : ''}`}>
+                        <Calendar className="h-3 w-3" /> {formatDate(task.due_date)}
+                        {task.due_date < today && !task.completed && ' (Overdue)'}
+                      </span>
                     )}
                   </div>
-                  {canEdit && (
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => handleEdit(task)}
-                        className="p-1 text-gray-400 hover:text-blue-600"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(task.id)}
-                        className="p-1 text-gray-400 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
-            ))
-        )}
-      </div>
+              <div className="flex gap-1 ml-2">
+                <button
+                  onClick={() => {
+                    setEditingId(task.id);
+                    setFormData({ title: task.title, assignedTo: task.assigned_to || '', dueDate: task.due_date || '' });
+                    setShowAddForm(true);
+                  }}
+                  className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+                <button onClick={() => handleDelete(task.id)} className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

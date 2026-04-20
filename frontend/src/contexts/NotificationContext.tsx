@@ -15,58 +15,139 @@ interface NotificationContextType {
   markAsRead: (id: string) => void;
   clearAll: () => void;
   unreadCount: number;
+  refreshNotifications: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
-  if (context === undefined) {
-    throw new Error('useNotifications must be used within a NotificationProvider');
+  if (!context) {
+    throw new Error('useNotifications must be used within NotificationProvider');
   }
   return context;
 };
 
-interface NotificationProviderProps {
+interface Props {
   children: ReactNode;
 }
 
-export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
+const API = "http://localhost:5000";
+
+export const NotificationProvider: React.FC<Props> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  useEffect(() => {
-    const savedNotifications = localStorage.getItem('shivohub_notifications');
-    if (savedNotifications) {
-      setNotifications(JSON.parse(savedNotifications));
+  // ================= FETCH =================
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem("token"); // ✅ FIX: always get latest token
+
+      if (!token) return;
+
+      const res = await fetch(`${API}/notifications`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch notifications");
+
+      const data = await res.json();
+
+      // ✅ map backend → frontend format
+      const formatted: Notification[] = data.map((n: any) => ({
+        id: n.id,
+        type: n.type || 'info',
+        title: n.title,
+        message: n.message,
+        createdAt: n.created_at,
+        read: n.is_read
+      }));
+
+      setNotifications(formatted);
+
+    } catch (err) {
+      console.error("NOTIFICATION FETCH ERROR:", err);
     }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+
+    // 🔥 auto refresh every 30 sec (until realtime added)
+    const interval = setInterval(fetchNotifications, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  const saveNotifications = (updatedNotifications: Notification[]) => {
-    setNotifications(updatedNotifications);
-    localStorage.setItem('shivohub_notifications', JSON.stringify(updatedNotifications));
+  // ================= ADD =================
+  const addNotification = async (
+    notificationData: Omit<Notification, 'id' | 'createdAt' | 'read'>
+  ) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) return;
+
+      await fetch(`${API}/notifications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(notificationData)
+      });
+
+      fetchNotifications();
+
+    } catch (err) {
+      console.error("ADD NOTIFICATION ERROR:", err);
+    }
   };
 
-  const addNotification = (notificationData: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
-    const notification: Notification = {
-      ...notificationData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      read: false
-    };
-    
-    const updatedNotifications = [notification, ...notifications];
-    saveNotifications(updatedNotifications);
+  // ================= MARK AS READ =================
+  const markAsRead = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) return;
+
+      await fetch(`${API}/notifications/${id}/read`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      // 🔥 instant UI update (no wait)
+      setNotifications(prev =>
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      );
+
+    } catch (err) {
+      console.error("MARK READ ERROR:", err);
+    }
   };
 
-  const markAsRead = (id: string) => {
-    const updatedNotifications = notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    );
-    saveNotifications(updatedNotifications);
-  };
+  // ================= CLEAR =================
+  const clearAll = async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-  const clearAll = () => {
-    saveNotifications([]);
+      if (!token) return;
+
+      await fetch(`${API}/notifications/clear`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      setNotifications([]);
+
+    } catch (err) {
+      console.error("CLEAR ERROR:", err);
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -77,7 +158,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       addNotification,
       markAsRead,
       clearAll,
-      unreadCount
+      unreadCount,
+      refreshNotifications: fetchNotifications
     }}>
       {children}
     </NotificationContext.Provider>

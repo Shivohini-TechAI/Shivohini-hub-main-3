@@ -9,6 +9,7 @@ const InvoicePreview: React.FC = () => {
   const invoiceRef = useRef<HTMLDivElement>(null);
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '-';
     return dayjs(dateString).format('DD/MM/YYYY');
   };
 
@@ -16,8 +17,11 @@ const InvoicePreview: React.FC = () => {
     return formatCurrency(amount, store.currency, { showSymbol: false });
   };
 
+  // 🔥 FIX: safely parse taxRate to number to avoid .toFixed crash
+  const taxRate = parseFloat(String(store.taxRate)) || 0;
+
   return (
-    <div className="h-full overflow-y-auto bg-gray-100 dark:bg-gray-900">
+    <div className="h-full overflow-y-auto bg-gray-100">
       <div className="p-8">
         <div
           ref={invoiceRef}
@@ -25,9 +29,8 @@ const InvoicePreview: React.FC = () => {
           className="max-w-4xl mx-auto bg-white shadow-2xl"
           style={{ width: '210mm', minHeight: '297mm' }}
         >
-          {/* Header - Navy bar with INVOICE and meta on left, large logo on right */}
+          {/* Header */}
           <div style={{ backgroundColor: '#0B2D5B' }} className="px-12 py-8 flex items-center justify-between">
-            {/* LEFT: INVOICE label and meta info */}
             <div className="flex-shrink-0">
               <h1
                 style={{ color: '#F2C01A', fontSize: '48px', fontWeight: 'bold', letterSpacing: '0.05em' }}
@@ -35,24 +38,23 @@ const InvoicePreview: React.FC = () => {
               >
                 INVOICE
               </h1>
-
               <div className="space-y-1 text-white text-sm">
                 <div className="flex items-center space-x-3">
                   <span className="text-gray-300">Invoice #:</span>
-                  <span className="font-semibold">{store.number}</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <span className="text-gray-300">Due Date:</span>
-                  <span className="font-semibold">{formatDate(store.dueDate)}</span>
+                  <span className="font-semibold">{store.number || '-'}</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <span className="text-gray-300">Invoice Date:</span>
                   <span className="font-semibold">{formatDate(store.issueDate)}</span>
                 </div>
+                {store.dueDate && (
+                  <div className="flex items-center space-x-3">
+                    <span className="text-gray-300">Due Date:</span>
+                    <span className="font-semibold">{formatDate(store.dueDate)}</span>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* RIGHT: Large logo */}
             <div className="flex-shrink-0">
               <img
                 src={`${window.location.origin}/Logo_withoutBG.png`}
@@ -66,9 +68,8 @@ const InvoicePreview: React.FC = () => {
           {/* Cyan accent bar */}
           <div style={{ backgroundColor: '#6FE9E8', height: '8px' }}></div>
 
-          {/* Bill To / Bill From - Two columns */}
+          {/* Bill To / Bill From */}
           <div className="px-12 py-8 grid grid-cols-2 gap-12">
-            {/* LEFT: Bill To */}
             <div>
               <h3
                 style={{ color: '#0B2D5B', fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.05em' }}
@@ -86,7 +87,6 @@ const InvoicePreview: React.FC = () => {
               </div>
             </div>
 
-            {/* RIGHT: Bill From */}
             <div>
               <h3
                 style={{ color: '#0B2D5B', fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.05em' }}
@@ -95,12 +95,7 @@ const InvoicePreview: React.FC = () => {
                 Bill From:
               </h3>
               <div style={{ color: '#101828' }} className="space-y-1 text-sm">
-                <p className="font-semibold text-base">{store.billFrom.company || 'Shivohini TechAI'}</p>
-                {store.billFrom.address && (
-                  <p className="text-gray-600 whitespace-pre-line">{store.billFrom.address}</p>
-                )}
-                {store.billFrom.email && <p className="text-gray-600">{store.billFrom.email}</p>}
-                {store.billFrom.phone && <p className="text-gray-600">{store.billFrom.phone}</p>}
+                <p className="font-semibold text-base">Shivohini TechAI LLP</p>
               </div>
             </div>
           </div>
@@ -108,54 +103,42 @@ const InvoicePreview: React.FC = () => {
           {/* Items Table */}
           <div className="px-12 pb-8">
             <table className="w-full border-collapse" style={{ border: '1px solid #E5E7EB' }}>
-              {/* Header */}
               <thead>
                 <tr style={{ backgroundColor: '#0B2D5B' }}>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '25%' }}>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '40%' }}>
                     Item Name
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '35%' }}>
-                    Description
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '13%' }}>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '20%' }}>
                     Price
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '12%' }}>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '20%' }}>
                     Quantity
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '15%' }}>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-white uppercase tracking-wider border border-gray-300" style={{ width: '20%' }}>
                     Total
                   </th>
                 </tr>
               </thead>
-
-              {/* Body - Actual items */}
               <tbody>
                 {store.lineItems.map((item) => (
                   <tr key={item.id}>
                     <td className="px-4 py-3 text-sm border border-gray-300" style={{ color: '#101828' }}>
                       {item.name || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 border border-gray-300">
-                      {item.description || '-'}
-                    </td>
                     <td className="px-4 py-3 text-sm text-right border border-gray-300" style={{ color: '#101828' }}>
-                      {formatAmount(item.unitPrice)}
+                      {formatAmount(parseFloat(String(item.unitPrice)) || 0)}
                     </td>
                     <td className="px-4 py-3 text-sm text-right border border-gray-300" style={{ color: '#101828' }}>
                       {item.qty}
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-right border border-gray-300" style={{ color: '#101828' }}>
-                      {formatAmount(item.qty * item.unitPrice)}
+                      {formatAmount((parseFloat(String(item.qty)) || 0) * (parseFloat(String(item.unitPrice)) || 0))}
                     </td>
                   </tr>
                 ))}
-
-                {/* Empty rows to maintain table structure */}
                 {[...Array(Math.max(0, 5 - store.lineItems.length))].map((_, i) => (
                   <tr key={`empty-${i}`}>
                     <td className="px-4 py-3 text-sm border border-gray-300" style={{ height: '45px' }}>&nbsp;</td>
-                    <td className="px-4 py-3 text-sm border border-gray-300">&nbsp;</td>
                     <td className="px-4 py-3 text-sm border border-gray-300">&nbsp;</td>
                     <td className="px-4 py-3 text-sm border border-gray-300">&nbsp;</td>
                     <td className="px-4 py-3 text-sm border border-gray-300">&nbsp;</td>
@@ -164,10 +147,9 @@ const InvoicePreview: React.FC = () => {
               </tbody>
             </table>
 
-            {/* Totals Card - Positioned at bottom right */}
+            {/* Totals */}
             <div className="flex justify-end mt-6">
               <div className="border-2" style={{ borderColor: '#0B2D5B', width: '320px' }}>
-                {/* Subtotal row */}
                 <div className="flex justify-between px-4 py-2 border-b" style={{ borderColor: '#E5E7EB' }}>
                   <span className="text-sm font-medium" style={{ color: '#101828' }}>Subtotal:</span>
                   <span className="text-sm font-semibold" style={{ color: '#101828' }}>
@@ -175,8 +157,7 @@ const InvoicePreview: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Discount row (if applicable) */}
-                {store.discountType && store.discountValue > 0 && (
+                {store.discountType && (parseFloat(String(store.discountValue)) || 0) > 0 && (
                   <div className="flex justify-between px-4 py-2 border-b" style={{ borderColor: '#E5E7EB' }}>
                     <span className="text-sm font-medium" style={{ color: '#101828' }}>
                       Discount {store.discountType === 'percent' ? `(${store.discountValue}%)` : ''}:
@@ -187,11 +168,11 @@ const InvoicePreview: React.FC = () => {
                   </div>
                 )}
 
-                {/* Tax row */}
-                {store.taxRate > 0 && (
+                {/* 🔥 FIX: use parsed taxRate safely */}
+                {taxRate > 0 && (
                   <div className="flex justify-between px-4 py-2 border-b" style={{ borderColor: '#E5E7EB' }}>
                     <span className="text-sm font-medium" style={{ color: '#101828' }}>
-                      Tax ({store.taxRate.toFixed(2)}%):
+                      Tax ({taxRate.toFixed(2)}%):
                     </span>
                     <span className="text-sm font-semibold" style={{ color: '#101828' }}>
                       {formatAmount(calculations.taxAmount)}
@@ -199,11 +180,8 @@ const InvoicePreview: React.FC = () => {
                   </div>
                 )}
 
-                {/* Amount Due - Navy background with yellow text */}
                 <div className="flex justify-between px-4 py-3" style={{ backgroundColor: '#0B2D5B' }}>
-                  <span className="text-base font-bold" style={{ color: '#F2C01A' }}>
-                    Amount Due:
-                  </span>
+                  <span className="text-base font-bold" style={{ color: '#F2C01A' }}>Amount Due:</span>
                   <span className="text-base font-bold text-white">
                     {store.currency} {formatAmount(calculations.totalDue)}
                   </span>
@@ -225,7 +203,7 @@ const InvoicePreview: React.FC = () => {
             </div>
           )}
 
-          {/* Terms & Conditions */}
+          {/* Terms */}
           {store.includeTerms && store.terms && (
             <div className="px-12 py-6 border-t" style={{ borderColor: '#E5E7EB' }}>
               <h3
@@ -238,17 +216,13 @@ const InvoicePreview: React.FC = () => {
             </div>
           )}
 
-          {/* Signature Area */}
+          {/* Signature */}
           <div className="px-12 py-8 border-t" style={{ borderColor: '#E5E7EB' }}>
             <div className="flex justify-end">
               <div className="flex flex-col items-end" style={{ width: '320px' }}>
                 {store.includeSignature && store.signatureUrl ? (
                   <>
-                    <img
-                      src={store.signatureUrl}
-                      alt="Signature"
-                      className="h-20 object-contain mb-2"
-                    />
+                    <img src={store.signatureUrl} alt="Signature" className="h-20 object-contain mb-2" />
                     <div className="border-t-2 border-gray-800 w-full mb-1"></div>
                     <p className="text-sm text-gray-600">Authorized Signature</p>
                   </>
@@ -262,10 +236,11 @@ const InvoicePreview: React.FC = () => {
             </div>
           </div>
 
-          {/* Footer - Navy bar */}
+          {/* Footer */}
           <div style={{ backgroundColor: '#0B2D5B', height: '40px' }} className="flex items-center justify-center">
             <p className="text-white text-sm">Thank you for your business!</p>
           </div>
+
         </div>
       </div>
     </div>

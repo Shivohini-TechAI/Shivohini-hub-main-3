@@ -1,4 +1,4 @@
-import {} from '../lib/api';
+const API = "http://localhost:5000";
 
 export interface InvoiceSeedDefaultsConfig {
   defaultCurrency: 'INR' | 'USD' | 'AED';
@@ -52,53 +52,41 @@ const FACTORY_DEFAULTS: InvoiceSeedDefaultsConfig = {
   invoiceNumberPattern: 'INV-YYYYMM-###',
   startingCounter: 1,
   includeNotesByDefault: true,
-  defaultNotes: 'Thank you for your business! Payment is due within the specified due date.',
+  defaultNotes: 'Thank you for your business!',
   includeTermsByDefault: true,
-  defaultTerms: 'Payment is due within 7 days of invoice date.\nLate payments may incur additional charges.\nAll prices are in the specified currency.',
+  defaultTerms: 'Payment due within 7 days.',
   includeSignatureByDefault: false,
 };
 
 const CACHE_KEY = 'shivohini-hub:activeSeedDefaults';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 
+// ================= LOAD ALL =================
 export async function loadAllPresets(userId: string): Promise<InvoiceSeedDefaultsPreset[]> {
-  const { data, error } = await supabase
-    .from('invoice_seed_defaults')
-    .select('*')
-    .eq('owner_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
+  const res = await fetch(`${API}/invoice-presets?userId=${userId}`);
+  if (!res.ok) throw new Error("Failed to load presets");
+  return res.json();
 }
 
+// ================= LOAD ACTIVE =================
 export async function loadActivePreset(userId: string): Promise<InvoiceSeedDefaultsConfig> {
-  // Try cache first
   const cached = localStorage.getItem(CACHE_KEY);
+
   if (cached) {
     try {
       const { config, timestamp, userId: cachedUserId } = JSON.parse(cached);
       if (Date.now() - timestamp < CACHE_DURATION && cachedUserId === userId) {
         return config;
       }
-    } catch (e) {
-      // Invalid cache, continue to fetch
-    }
+    } catch {}
   }
 
-  // Fetch from Supabase
-  const { data, error } = await supabase
-    .from('invoice_seed_defaults')
-    .select('*')
-    .eq('owner_id', userId)
-    .eq('is_active', true)
-    .maybeSingle();
+  const res = await fetch(`${API}/invoice-presets/active?userId=${userId}`);
+  if (!res.ok) return FACTORY_DEFAULTS;
 
-  if (error) throw error;
-
+  const data = await res.json();
   const config = data?.config || FACTORY_DEFAULTS;
 
-  // Cache the result
   localStorage.setItem(
     CACHE_KEY,
     JSON.stringify({ config, timestamp: Date.now(), userId })
@@ -107,155 +95,111 @@ export async function loadActivePreset(userId: string): Promise<InvoiceSeedDefau
   return config;
 }
 
+// ================= SAVE =================
 export async function savePreset(
   userId: string,
   name: string,
   config: InvoiceSeedDefaultsConfig,
   id?: string
 ): Promise<InvoiceSeedDefaultsPreset> {
-  if (id) {
-    // Update existing preset
-    const { data, error } = await supabase
-      .from('invoice_seed_defaults')
-      .update({
-        name,
-        config,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .eq('owner_id', userId)
-      .select()
-      .single();
 
-    if (error) throw error;
-    return data;
-  } else {
-    // Create new preset
-    const { data, error } = await supabase
-      .from('invoice_seed_defaults')
-      .insert({
-        owner_id: userId,
-        name,
-        config,
-        is_active: false,
-      })
-      .select()
-      .single();
+  const res = await fetch(`${API}/invoice-presets`, {
+    method: id ? "PUT" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, name, config, id }),
+  });
 
-    if (error) throw error;
-    return data;
-  }
+  if (!res.ok) throw new Error("Failed to save preset");
+
+  return res.json();
 }
 
+// ================= SET ACTIVE =================
 export async function setActivePreset(userId: string, presetId: string): Promise<void> {
-  // Deactivate all presets
-  await supabase
-    .from('invoice_seed_defaults')
-    .update({ is_active: false })
-    .eq('owner_id', userId);
+  await fetch(`${API}/invoice-presets/activate/${presetId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
 
-  // Activate the selected preset
-  const { error } = await supabase
-    .from('invoice_seed_defaults')
-    .update({ is_active: true })
-    .eq('id', presetId)
-    .eq('owner_id', userId);
-
-  if (error) throw error;
-
-  // Clear cache
   localStorage.removeItem(CACHE_KEY);
 }
 
+// ================= DELETE =================
 export async function deletePreset(userId: string, presetId: string): Promise<void> {
-  const { error } = await supabase
-    .from('invoice_seed_defaults')
-    .delete()
-    .eq('id', presetId)
-    .eq('owner_id', userId);
+  await fetch(`${API}/invoice-presets/${presetId}?userId=${userId}`, {
+    method: "DELETE",
+  });
 
-  if (error) throw error;
-
-  // Clear cache
   localStorage.removeItem(CACHE_KEY);
 }
 
+// ================= RESET =================
 export async function resetToFactoryDefaults(userId: string): Promise<InvoiceSeedDefaultsPreset> {
-  // Deactivate all presets
-  await supabase
-    .from('invoice_seed_defaults')
-    .update({ is_active: false })
-    .eq('owner_id', userId);
+  const res = await fetch(`${API}/invoice-presets/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
 
-  // Create a new factory defaults preset
-  const { data, error } = await supabase
-    .from('invoice_seed_defaults')
-    .insert({
-      owner_id: userId,
-      name: 'Factory Defaults',
-      config: FACTORY_DEFAULTS,
-      is_active: true,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // Clear cache
   localStorage.removeItem(CACHE_KEY);
 
-  return data;
+  return res.json();
 }
 
-export function exportPresetsToJSON(presets: InvoiceSeedDefaultsPreset[]): string {
-  const exportData = presets.map((preset) => ({
-    name: preset.name,
-    config: preset.config,
-  }));
-  return JSON.stringify(exportData, null, 2);
-}
-
+// ================= IMPORT (🔥 FIXED) =================
 export async function importPresetsFromJSON(
   userId: string,
   jsonString: string
 ): Promise<number> {
+
   let presets;
+
   try {
     presets = JSON.parse(jsonString);
-  } catch (e) {
-    throw new Error('Invalid JSON format');
+  } catch {
+    throw new Error("Invalid JSON");
   }
 
   if (!Array.isArray(presets)) {
-    throw new Error('JSON must be an array of presets');
+    throw new Error("JSON must be array");
   }
 
-  let importedCount = 0;
+  let count = 0;
 
   for (const preset of presets) {
-    if (!preset.name || !preset.config) {
-      continue; // Skip invalid presets
-    }
+    if (!preset.name || !preset.config) continue;
 
-    try {
-      await api.from('invoice_seed_defaults').insert({
-        owner_id: userId,
+    await fetch(`${API}/invoice-presets`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId,
         name: preset.name,
         config: preset.config,
-        is_active: false,
-      });
-      importedCount++;
-    } catch (e) {
-      console.error('Failed to import preset:', preset.name, e);
-    }
+      }),
+    });
+
+    count++;
   }
 
-  // Clear cache
   localStorage.removeItem(CACHE_KEY);
 
-  return importedCount;
+  return count;
 }
 
+// ================= EXPORT =================
+export function exportPresetsToJSON(presets: InvoiceSeedDefaultsPreset[]): string {
+  return JSON.stringify(
+    presets.map(p => ({ name: p.name, config: p.config })),
+    null,
+    2
+  );
+}
+
+// ================= UTIL =================
 export function getFactoryDefaults(): InvoiceSeedDefaultsConfig {
   return { ...FACTORY_DEFAULTS };
 }

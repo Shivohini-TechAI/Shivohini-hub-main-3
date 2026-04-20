@@ -1,6 +1,10 @@
-import {} from '../lib/api';
-import type { InvoiceState, LineItem } from '../store/invoiceStore';
+// ❌ REMOVE THIS (no more supabase)
+// import {} from '../lib/api';
+
+import type { InvoiceState } from '../store/invoiceStore';
 import { calculateInvoiceTotals } from '../utils/invoiceMath';
+
+const API = "http://localhost:5000";
 
 export interface SaveInvoiceResult {
   invoiceId: string;
@@ -12,6 +16,7 @@ export async function saveInvoice(
   invoiceState: InvoiceState & { invoiceId?: string },
   userId: string
 ): Promise<SaveInvoiceResult> {
+
   if (!userId) {
     return {
       invoiceId: '',
@@ -28,174 +33,78 @@ export async function saveInvoice(
       invoiceState.discountValue
     );
 
-    const isUpdate = !!invoiceState.invoiceId;
+    const payload = {
+      invoiceId: invoiceState.invoiceId || null,
+      number: invoiceState.number,
+      issueDate: invoiceState.issueDate,
+      dueDate: invoiceState.dueDate,
+      currency: invoiceState.currency,
 
-    if (isUpdate) {
-      return await updateInvoice(invoiceState, userId, calculations);
-    } else {
-      return await createInvoice(invoiceState, userId, calculations);
+      billFrom: {
+        company: invoiceState.billFrom.company,
+        email: invoiceState.billFrom.email,
+        phone: invoiceState.billFrom.phone,
+        address: invoiceState.billFrom.address,
+      },
+
+      billTo: {
+        name: invoiceState.billTo.name,
+        email: invoiceState.billTo.email,
+        phone: invoiceState.billTo.phone,
+        address: invoiceState.billTo.address,
+      },
+
+      lineItems: invoiceState.lineItems,
+
+      taxRate: invoiceState.taxRate,
+      discountType: invoiceState.discountType || null,
+      discountValue: invoiceState.discountValue,
+
+      includeNotes: invoiceState.includeNotes,
+      notes: invoiceState.notes,
+
+      includeTerms: invoiceState.includeTerms,
+      terms: invoiceState.terms,
+
+      includeSignature: invoiceState.includeSignature,
+      signatureUrl: invoiceState.signatureUrl,
+
+      createdBy: userId,
+
+      calculations: {
+        subtotal: calculations.subtotal,
+        taxAmount: calculations.taxAmount,
+        discountAmount: calculations.discountAmount,
+        totalDue: calculations.totalDue,
+      }
+    };
+
+    const res = await fetch(`${API}/invoices`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to save invoice');
     }
+
+    return {
+      invoiceId: data.invoiceId,
+      success: true,
+    };
+
   } catch (error) {
-    console.error('Error saving invoice:', error);
+    console.error("SAVE INVOICE ERROR:", error);
+
     return {
       invoiceId: '',
       success: false,
       error: error instanceof Error ? error.message : 'Failed to save invoice',
     };
   }
-}
-
-async function createInvoice(
-  invoiceState: InvoiceState & { invoiceId?: string },
-  userId: string,
-  calculations: ReturnType<typeof calculateInvoiceTotals>
-): Promise<SaveInvoiceResult> {
-  const invoiceData = {
-    number: invoiceState.number,
-    issue_date: invoiceState.issueDate,
-    due_date: invoiceState.dueDate,
-    currency: invoiceState.currency,
-    bill_from_company: invoiceState.billFrom.company,
-    bill_from_email: invoiceState.billFrom.email,
-    bill_from_phone: invoiceState.billFrom.phone,
-    bill_from_address: invoiceState.billFrom.address,
-    bill_to_name: invoiceState.billTo.name,
-    bill_to_email: invoiceState.billTo.email,
-    bill_to_phone: invoiceState.billTo.phone,
-    bill_to_address: invoiceState.billTo.address,
-    tax_rate: invoiceState.taxRate,
-    discount_type: invoiceState.discountType || null,
-    discount_value: invoiceState.discountValue,
-    subtotal: calculations.subtotal,
-    tax_amount: calculations.taxAmount,
-    discount_amount: calculations.discountAmount,
-    total_due: calculations.totalDue,
-    include_notes: invoiceState.includeNotes,
-    notes: invoiceState.notes,
-    include_terms: invoiceState.includeTerms,
-    terms: invoiceState.terms,
-    include_signature: invoiceState.includeSignature,
-    signature_url: invoiceState.signatureUrl,
-    created_by: userId,
-  };
-
-  const { data: invoice, error: invoiceError } = await supabase
-    .from('invoices')
-    .insert([invoiceData])
-    .select()
-    .single();
-
-  if (invoiceError) {
-    throw new Error(invoiceError.message);
-  }
-
-  if (!invoice) {
-    throw new Error('Failed to create invoice');
-  }
-
-  // Insert line items
-  if (invoiceState.lineItems.length > 0) {
-    const lineItemsData = invoiceState.lineItems.map((item) => ({
-      invoice_id: invoice.id,
-      name: item.name,
-      description: item.description,
-      qty: item.qty,
-      unit_price: item.unitPrice,
-      line_total: item.qty * item.unitPrice,
-    }));
-
-    const { error: lineItemsError } = await supabase
-      .from('invoice_line_items')
-      .insert(lineItemsData);
-
-    if (lineItemsError) {
-      throw new Error(lineItemsError.message);
-    }
-  }
-
-  return {
-    invoiceId: invoice.id,
-    success: true,
-  };
-}
-
-async function updateInvoice(
-  invoiceState: InvoiceState & { invoiceId?: string },
-  userId: string,
-  calculations: ReturnType<typeof calculateInvoiceTotals>
-): Promise<SaveInvoiceResult> {
-  const invoiceId = invoiceState.invoiceId!;
-
-  const invoiceData = {
-    number: invoiceState.number,
-    issue_date: invoiceState.issueDate,
-    due_date: invoiceState.dueDate,
-    currency: invoiceState.currency,
-    bill_from_company: invoiceState.billFrom.company,
-    bill_from_email: invoiceState.billFrom.email,
-    bill_from_phone: invoiceState.billFrom.phone,
-    bill_from_address: invoiceState.billFrom.address,
-    bill_to_name: invoiceState.billTo.name,
-    bill_to_email: invoiceState.billTo.email,
-    bill_to_phone: invoiceState.billTo.phone,
-    bill_to_address: invoiceState.billTo.address,
-    tax_rate: invoiceState.taxRate,
-    discount_type: invoiceState.discountType || null,
-    discount_value: invoiceState.discountValue,
-    subtotal: calculations.subtotal,
-    tax_amount: calculations.taxAmount,
-    discount_amount: calculations.discountAmount,
-    total_due: calculations.totalDue,
-    include_notes: invoiceState.includeNotes,
-    notes: invoiceState.notes,
-    include_terms: invoiceState.includeTerms,
-    terms: invoiceState.terms,
-    include_signature: invoiceState.includeSignature,
-    signature_url: invoiceState.signatureUrl,
-  };
-
-  const { error: updateError } = await supabase
-    .from('invoices')
-    .update(invoiceData)
-    .eq('id', invoiceId)
-    .eq('created_by', userId);
-
-  if (updateError) {
-    throw new Error(updateError.message);
-  }
-
-  // Delete existing line items
-  const { error: deleteError } = await supabase
-    .from('invoice_line_items')
-    .delete()
-    .eq('invoice_id', invoiceId);
-
-  if (deleteError) {
-    throw new Error(deleteError.message);
-  }
-
-  // Insert new line items
-  if (invoiceState.lineItems.length > 0) {
-    const lineItemsData = invoiceState.lineItems.map((item) => ({
-      invoice_id: invoiceId,
-      name: item.name,
-      description: item.description,
-      qty: item.qty,
-      unit_price: item.unitPrice,
-      line_total: item.qty * item.unitPrice,
-    }));
-
-    const { error: lineItemsError } = await supabase
-      .from('invoice_line_items')
-      .insert(lineItemsData);
-
-    if (lineItemsError) {
-      throw new Error(lineItemsError.message);
-    }
-  }
-
-  return {
-    invoiceId,
-    success: true,
-  };
 }

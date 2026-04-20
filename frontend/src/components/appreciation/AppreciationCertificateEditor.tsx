@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { createAppreciationCertificate } from '../../services/appreciationCertificates';
 import { AppreciationCertificateData } from '../../services/appreciationCertificate';
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface AppreciationCertificateEditorProps {
   certificateData: AppreciationCertificateData;
@@ -22,29 +24,61 @@ const AppreciationCertificateEditor: React.FC<AppreciationCertificateEditorProps
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = async () => {
-    if (!user) return toast.error('You must be logged in to save certificates.');
-    if (!certificateData.recipientName || !certificateData.appreciationFor)
-      return toast.error('Recipient name and appreciation reason are required.');
+  const handleDownload = async () => {
+  const element = document.querySelector("#certificate-preview");
 
-    setIsSaving(true);
-    try {
-      toast.loading('Saving certificate...', { id: 'save-certificate' });
-      await createAppreciationCertificate({
-        recipient_name: certificateData.recipientName,
-        designation: certificateData.designation,
-        appreciation_for: certificateData.appreciationFor,
-        issue_date: certificateData.issueDate,
-        created_by: user.id,
-      });
-      toast.success('Certificate saved successfully!', { id: 'save-certificate' });
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to save certificate.', { id: 'save-certificate' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  if (!element) {
+    toast.error("Preview not found");
+    return;
+  }
+
+  try {
+    const canvas = await html2canvas(element as HTMLElement);
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+
+    pdf.save("certificate.pdf");
+  } catch (err) {
+    console.error(err);
+    toast.error("Download failed");
+  }
+};
+
+  const handleSave = async () => {
+  if (!user) {
+    return toast.error('You must be logged in to save certificates.');
+  }
+
+  if (!certificateData.recipientName || !certificateData.appreciationFor) {
+    return toast.error('Recipient name and appreciation reason are required.');
+  }
+
+  setIsSaving(true);
+
+  try {
+    toast.loading('Saving certificate...', { id: 'save-certificate' });
+
+    await createAppreciationCertificate({
+      recipient_name: certificateData.recipientName,
+      designation: certificateData.designation || null,
+      appreciation_for: certificateData.appreciationFor,
+      issue_date: certificateData.issueDate || null,
+      joining_date: certificateData.joiningDate || null
+    });
+
+    toast.success('Certificate saved successfully!', { id: 'save-certificate' });
+
+  } catch (err) {
+    console.error(err);
+    toast.error('Failed to save certificate.', { id: 'save-certificate' });
+
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   return (
     <div className="h-full overflow-y-auto bg-white dark:bg-gray-800 p-6 space-y-6">
@@ -138,7 +172,7 @@ const AppreciationCertificateEditor: React.FC<AppreciationCertificateEditorProps
 
   {/* Download Button */}
   <button
-    onClick={() => toast.info('Download feature coming next')}
+    onClick={handleDownload}
     className="w-full flex items-center justify-center px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-medium space-x-2"
   >
     <Download className="h-5 w-5" />

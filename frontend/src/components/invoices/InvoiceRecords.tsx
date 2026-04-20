@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Eye, Download } from 'lucide-react';
+import { Eye, Download, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchUserInvoices, fetchInvoiceById, InvoiceListItem } from '../../services/invoiceListService';
@@ -16,21 +16,22 @@ interface InvoiceRecordsProps {
 const InvoiceRecords: React.FC<InvoiceRecordsProps> = ({ refreshTrigger, onSwitchToPreview }) => {
   const { user } = useAuth();
   const loadInvoice = useInvoiceStore((state) => state.loadInvoice);
+
   const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadInvoices = async () => {
-    if (!user) return;
-
+    if (!user?.id) return;
     try {
       setLoading(true);
       setError(null);
       const data = await fetchUserInvoices(user.id);
       setInvoices(data);
     } catch (err) {
-      console.error('Error loading invoices:', err);
+      console.error(err);
       setError('Failed to load invoices');
     } finally {
       setLoading(false);
@@ -39,200 +40,161 @@ const InvoiceRecords: React.FC<InvoiceRecordsProps> = ({ refreshTrigger, onSwitc
 
   useEffect(() => {
     loadInvoices();
-  }, [user, refreshTrigger]);
+  }, [user?.id, refreshTrigger]);
 
-  const formatDate = (dateString: string) => {
-    return dayjs(dateString).format('MM/DD/YYYY');
-  };
+  const formatDate = (date: string) => dayjs(date).format('DD MMM YYYY');
+
+  const filteredInvoices = invoices.filter(inv =>
+    inv.bill_to_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inv.number?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleOpenInvoice = async (invoice: InvoiceListItem) => {
-    if (!user) return;
-
+    if (!user?.id) return;
     setProcessingId(invoice.id);
     try {
-      toast.loading('Loading invoice...', { id: 'load-invoice' });
-
+      toast.loading('Loading invoice...', { id: 'open' });
       const fullInvoice = await fetchInvoiceById(invoice.id, user.id);
       loadInvoice(fullInvoice);
-
-      toast.success('Invoice loaded!', { id: 'load-invoice' });
-
-      if (onSwitchToPreview) {
-        onSwitchToPreview();
-      }
+      toast.success('Invoice loaded', { id: 'open' });
+      onSwitchToPreview?.();
     } catch (err) {
-      console.error('Error loading invoice:', err);
-      toast.error('Failed to load invoice. Please try again.', { id: 'load-invoice' });
+      console.error(err);
+      toast.error('Failed to load invoice', { id: 'open' });
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleDownloadPDF = async (invoice: InvoiceListItem) => {
-    if (!user) return;
-
+    if (!user?.id) return;
     setProcessingId(invoice.id);
     try {
-      toast.loading('Fetching invoice details...', { id: 'download-pdf' });
+      toast.loading('Preparing PDF...', { id: 'pdf' });
 
+      // 1️⃣ Fetch full invoice
       const fullInvoice = await fetchInvoiceById(invoice.id, user.id);
+
+      // 2️⃣ Load into store
       loadInvoice(fullInvoice);
 
-      setTimeout(async () => {
-        try {
-          toast.loading('Generating PDF...', { id: 'download-pdf' });
+      // 3️⃣ Switch to Preview tab so invoice-preview element mounts in DOM
+      onSwitchToPreview?.();
 
-          await generateInvoicePDF({
-            invoiceNumber: fullInvoice.number,
-            clientName: fullInvoice.bill_to_name || 'client',
-            currency: fullInvoice.currency,
-          });
+      // 4️⃣ Wait longer for DOM to fully render the preview element
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-          toast.success('PDF downloaded!', { id: 'download-pdf' });
-        } catch (pdfErr) {
-          console.error('Error generating PDF:', pdfErr);
-          toast.error('Failed to generate PDF. Please try again.', { id: 'download-pdf' });
-        }
-      }, 500);
+      // 5️⃣ Check if element exists before generating
+      const el = document.getElementById('invoice-preview');
+      if (!el) {
+        toast.error('Preview not ready. Please try again.', { id: 'pdf' });
+        return;
+      }
+
+      // 6️⃣ Generate PDF
+      await generateInvoicePDF({
+        invoiceNumber: fullInvoice.number,
+        clientName: fullInvoice.bill_to_name || 'client',
+        currency: fullInvoice.currency,
+      });
+
+      toast.success('PDF downloaded', { id: 'pdf' });
+
     } catch (err) {
-      console.error('Error fetching invoice:', err);
-      toast.error('Failed to fetch invoice. Please try again.', { id: 'download-pdf' });
+      console.error(err);
+      toast.error('PDF failed', { id: 'pdf' });
     } finally {
-      setTimeout(() => setProcessingId(null), 1000);
+      setProcessingId(null);
     }
   };
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading invoices...</p>
-        </div>
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin h-10 w-10 border-b-2 border-blue-600 rounded-full"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-          <button
-            onClick={loadInvoices}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (invoices.length === 0) {
-    return (
-      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400">No invoices found</p>
-          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-            Create your first invoice to see it here
-          </p>
-        </div>
+      <div className="text-center p-6">
+        <p className="text-red-500 mb-3">{error}</p>
+        <button onClick={loadInvoices} className="bg-blue-600 text-white px-4 py-2 rounded">
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
-      <div className="p-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Invoice #
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Client
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Issue Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Due Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Currency
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Amount Due
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {invoice.number}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">
-                        {invoice.bill_to_name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(invoice.issue_date)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(invoice.due_date)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-gray-100">
-                        {invoice.currency}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(invoice.total_due, invoice.currency as any)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center space-x-2">
-                        <button
-                          onClick={() => handleOpenInvoice(invoice)}
-                          disabled={processingId === invoice.id}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Eye className="h-3 w-3" />
-                          <span>{processingId === invoice.id ? 'Loading...' : 'Open'}</span>
-                        </button>
-                        <button
-                          onClick={() => handleDownloadPDF(invoice)}
-                          disabled={processingId === invoice.id}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Download className="h-3 w-3" />
-                          <span>PDF</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+    <div className="p-6">
+
+      {/* Search bar */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+        <input
+          type="text"
+          placeholder="Search by client name or invoice number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm"
+        />
       </div>
+
+      {filteredInvoices.length === 0 ? (
+        <div className="text-center p-6 text-gray-500">
+          {invoices.length === 0 ? 'No invoices found' : 'No results match your search'}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-3 text-left text-sm">Invoice #</th>
+                <th className="p-3 text-left text-sm">Client</th>
+                <th className="p-3 text-center text-sm">Issue Date</th>
+                <th className="p-3 text-center text-sm">Currency</th>
+                <th className="p-3 text-right text-sm">Amount</th>
+                <th className="p-3 text-center text-sm">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredInvoices.map((inv) => (
+                <tr key={inv.id} className="border-t hover:bg-gray-50">
+                  <td className="p-3 font-medium text-sm">{inv.number}</td>
+                  <td className="p-3 text-sm">{inv.bill_to_name}</td>
+                  <td className="p-3 text-center text-sm">{formatDate(inv.issue_date)}</td>
+                  <td className="p-3 text-center text-sm">{inv.currency}</td>
+                  <td className="p-3 text-right font-semibold text-sm">
+                    {formatCurrency(inv.total_due, inv.currency as any)}
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => handleOpenInvoice(inv)}
+                        disabled={processingId === inv.id}
+                        title="Open Invoice"
+                        className="bg-blue-600 text-white px-3 py-1 rounded text-xs flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Eye size={14} /> Open
+                      </button>
+                      <button
+                        onClick={() => handleDownloadPDF(inv)}
+                        disabled={processingId === inv.id}
+                        title="Download PDF"
+                        className="bg-green-600 text-white px-3 py-1 rounded text-xs flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Download size={14} /> PDF
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
