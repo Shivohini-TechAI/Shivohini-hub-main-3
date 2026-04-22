@@ -45,7 +45,7 @@ const Analytics: React.FC = () => {
 
     load();
 
-    const interval = setInterval(load, 5000);
+    const interval = setInterval(load, 5001);
     return () => clearInterval(interval);
 
   }, [user]);

@@ -6,7 +6,7 @@ interface Props {
   onClose: () => void;
 }
 
-const API = "http://localhost:5000";
+const API = "http://localhost:5001";
 
 const ClientHistoryModal: React.FC<Props> = ({ clientId, onClose }) => {
   const [history, setHistory] = useState<any[]>([]);

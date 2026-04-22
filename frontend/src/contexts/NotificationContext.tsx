@@ -32,7 +32,7 @@ interface Props {
   children: ReactNode;
 }
 
-const API = "http://localhost:5000";
+const API = "http://localhost:5001";
 
 export const NotificationProvider: React.FC<Props> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);

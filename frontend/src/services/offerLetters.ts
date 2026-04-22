@@ -1,38 +1,75 @@
 import api from "../lib/api";
 
-export const getOfferLetters = async () => {
-  const res = await api.get("/api/offer-letters");
+/* ===================== TYPE ===================== */
+export interface OfferLetter {
+  id: string;
+  candidate_name: string;
+  candidate_email: string;
+  position_title: string;
+  department: string;
+  issue_date: string;
+  acceptance_deadline: string;
+  status: string;
+
+  nda_sent: boolean;
+  nda_received: boolean;
+  offer_sent: boolean;
+  offer_received: boolean;
+}
+
+/* ===================== API ===================== */
+
+// ✅ FIXED (IMPORTANT)
+export const getOfferLetters = async (): Promise<OfferLetter[]> => {
+  const res = await api.get<OfferLetter[]>("/api/offer-letters");
   return res.data;
 };
 
-export const getOfferLetterById = async (id: string) => {
-  const res = await api.get(`/api/offer-letters/${id}`);
+// ✅ FIXED
+export const getOfferLetterById = async (
+  id: string
+): Promise<OfferLetter> => {
+  const res = await api.get<OfferLetter>(`/api/offer-letters/${id}`);
   return res.data;
 };
 
-export const createOfferLetter = async (data: any) => {
-  const res = await api.post("/api/offer-letters", data);
+// ✅ FIXED
+export const createOfferLetter = async (
+  data: Partial<OfferLetter>
+): Promise<OfferLetter> => {
+  const res = await api.post<OfferLetter>("/api/offer-letters", data);
   return res.data;
 };
 
-export const updateOfferLetter = async (id: string, data: any) => {
-  const res = await api.put(`/api/offer-letters/${id}`, data);
+// ✅ FIXED
+export const updateOfferLetter = async (
+  id: string,
+  data: Partial<OfferLetter>
+): Promise<OfferLetter> => {
+  const res = await api.put<OfferLetter>(
+    `/api/offer-letters/${id}`,
+    data
+  );
   return res.data;
 };
 
-export const deleteOfferLetter = async (id: string) => {
-  const res = await api.delete(`/api/offer-letters/${id}`);
-  return res.data;
+// ✅ FIXED
+export const deleteOfferLetter = async (id: string): Promise<void> => {
+  await api.delete(`/api/offer-letters/${id}`);
 };
 
+// ✅ FIXED (STRICT FIELD TYPE)
 export const updateOfferLetterCheckbox = async (
   id: string,
-  field: string,
+  field: "nda_sent" | "nda_received" | "offer_sent" | "offer_received",
   value: boolean
-) => {
-  const res = await api.patch(`/api/offer-letters/${id}/checkbox`, {
-    field,
-    value,
-  });
+): Promise<OfferLetter> => {
+  const res = await api.patch<OfferLetter>(
+    `/api/offer-letters/${id}/checkbox`,
+    {
+      field,
+      value,
+    }
+  );
   return res.data;
 };

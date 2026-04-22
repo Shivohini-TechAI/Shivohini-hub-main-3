@@ -6,7 +6,7 @@ interface ClientPaymentsProps {
   projectId: string;
 }
 
-const API = "http://localhost:5000";
+const API = "http://localhost:5001";
 
 // 🔥 FIX: return correct currency symbol only
 const getCurrencySymbol = (currency: string) => {

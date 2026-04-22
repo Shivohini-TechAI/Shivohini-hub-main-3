@@ -37,7 +37,7 @@ interface AuthContextType {
   updateUserProfile: (id: string, data: any) => Promise<any>;
 }
 
-const API = "http://localhost:5000";
+const API = "http://localhost:5001";
 
 // ================= CONTEXT =================
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

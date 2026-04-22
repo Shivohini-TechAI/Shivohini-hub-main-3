@@ -5,7 +5,7 @@ import { useProjects } from '../contexts/ProjectContext';
 import { useNavigate } from 'react-router-dom';
 import CreateProjectModal from '../components/CreateProjectModal';
 
-const API = "http://localhost:5000";
+const API = "http://localhost:5001";
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();

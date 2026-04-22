@@ -16,7 +16,7 @@ const { Pool } = pg;
 const pool = new Pool({
   connectionString:
     process.env.DATABASE_URL ||
-    'postgres://postgres:nachiket@localhost:5434/mydb',
+    'postgres://postgres:nachiket@194.164.151.212:5433/mydb',
 
   // ✅ IMPORTANT for VPS / production (SSL)
   ssl:
@@ -32,7 +32,7 @@ pool.connect()
     client.release();
   })
   .catch(err => {
-    console.error('❌ PostgreSQL Connection Error:', err.message);
+    console.error('❌ PostgreSQL FULL ERROR:', err);
   });
 
 // ✅ Safe query function

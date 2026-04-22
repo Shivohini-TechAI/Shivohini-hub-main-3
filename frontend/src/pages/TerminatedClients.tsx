@@ -15,7 +15,7 @@ interface Client {
   terminated_reason?: string;
 }
 
-const API = "http://localhost:5000";
+const API = "http://localhost:5001";
 
 const TerminatedClients: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);

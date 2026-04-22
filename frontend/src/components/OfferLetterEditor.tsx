@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Eye, Save, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
@@ -21,7 +21,18 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
 }) => {
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
-  const isDownloading = offerLetterPreviewRef.current?.isDownloading || false;
+  // ✅ FIX: track isDownloading in local state so button re-renders correctly
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!offerLetterPreviewRef.current?.handleDownloadPDF) return;
+    setIsDownloading(true);
+    try {
+      await offerLetterPreviewRef.current.handleDownloadPDF();
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user) {
@@ -58,20 +69,20 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-white dark:bg-gray-800">
+    <div className="h-full overflow-y-auto bg-white">
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Offer Letter Details</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Offer Letter Details</h2>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
               Candidate Information
             </h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Candidate Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -79,12 +90,12 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
                 value={offerData.candidateName}
                 onChange={(e) => updateOfferData('candidateName', e.target.value)}
                 placeholder="Enter candidate full name"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Candidate Email <span className="text-red-500">*</span>
               </label>
               <input
@@ -92,18 +103,18 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
                 value={offerData.candidateEmail}
                 onChange={(e) => updateOfferData('candidateEmail', e.target.value)}
                 placeholder="candidate@example.com"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />
             </div>
           </div>
 
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
               Position Details
             </h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Position Title <span className="text-red-500">*</span>
               </label>
               <input
@@ -111,12 +122,12 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
                 value={offerData.positionTitle}
                 onChange={(e) => updateOfferData('positionTitle', e.target.value)}
                 placeholder="e.g., Senior Software Engineer"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Department
               </label>
               <input
@@ -124,37 +135,37 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
                 value={offerData.department}
                 onChange={(e) => updateOfferData('department', e.target.value)}
                 placeholder="e.g., Engineering"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />
             </div>
           </div>
 
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
               Dates
             </h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Issue Date
               </label>
               <input
                 type="date"
                 value={offerData.issueDate}
                 onChange={(e) => updateOfferData('issueDate', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Acceptance Deadline
               </label>
               <input
                 type="date"
                 value={offerData.acceptanceDeadline}
                 onChange={(e) => updateOfferData('acceptanceDeadline', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />
             </div>
           </div>
@@ -180,7 +191,7 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
 
           <div className="mt-4">
             <button
-              onClick={() => offerLetterPreviewRef.current?.handleDownloadPDF?.()}
+              onClick={handleDownload}
               disabled={isDownloading}
               className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-lg transition-all shadow-lg disabled:cursor-not-allowed font-medium"
             >

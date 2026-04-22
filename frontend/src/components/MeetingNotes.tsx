@@ -7,7 +7,7 @@ interface MeetingNotesProps {
   projectId: string;
 }
 
-const API = "http://localhost:5000";
+const API = "http://localhost:5001";
 
 const MeetingNotes: React.FC<MeetingNotesProps> = ({ projectId }) => {
   const { projects } = useProjects();

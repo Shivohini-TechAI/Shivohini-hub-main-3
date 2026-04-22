@@ -34,7 +34,7 @@ const OfferLetterRecords: React.FC<OfferLetterRecordsProps> = ({ onView, onEdit,
       setError(null);
 
       const data = await getOfferLetters();
-      setOfferLetters(data || []);
+      setOfferLetters((data as OfferLetter[]) || []);
     } catch (err) {
       console.error('Error loading offer letters:', err);
       setError('Failed to load offer letters');
