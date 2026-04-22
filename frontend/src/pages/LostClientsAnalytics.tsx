@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 const LostClientsAnalytics: React.FC = () => {
   const [data, setData] = useState<any[]>([]);

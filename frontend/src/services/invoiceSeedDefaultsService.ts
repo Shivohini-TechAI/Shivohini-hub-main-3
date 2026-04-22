@@ -1,4 +1,4 @@
-const API = "http://localhost:5001";
+const API = "/api";
 
 export interface InvoiceSeedDefaultsConfig {
   defaultCurrency: 'INR' | 'USD' | 'AED';

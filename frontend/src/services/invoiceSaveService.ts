@@ -4,7 +4,7 @@
 import type { InvoiceState } from '../store/invoiceStore';
 import { calculateInvoiceTotals } from '../utils/invoiceMath';
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 export interface SaveInvoiceResult {
   invoiceId: string;

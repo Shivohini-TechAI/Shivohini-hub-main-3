@@ -4,7 +4,7 @@ import { useProjects } from '../contexts/ProjectContext';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 const ArchivePage: React.FC = () => {
   const { projects, restoreProject, deleteProject } = useProjects();

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 export interface Task {
   id: string;

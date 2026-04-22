@@ -1,7 +1,7 @@
 import type { InvoiceState } from '../store/invoiceStore';
 import { calculateInvoiceTotals } from '../utils/invoiceMath';
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 const DRAFT_KEY = 'shivohini-hub:invoiceDraft';
 const AUTOSAVE_DELAY = 1000;

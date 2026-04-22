@@ -3,7 +3,8 @@ import axios from "axios";
 // -------- AXIOS INSTANCE --------
 
 const api = axios.create({
-  baseURL: "http://localhost:5001",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
+  withCredentials: true,
 });
 
 // -------- ADD TOKEN AUTOMATICALLY --------

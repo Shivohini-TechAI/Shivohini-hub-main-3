@@ -9,7 +9,7 @@ import ProgressTable from '../components/ProgressTable';
 import CostingTable from '../components/CostingTable';
 import ClientPayments from '../components/ClientPayments';
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 const ProjectDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();

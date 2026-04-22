@@ -33,7 +33,7 @@ const SignupPage: React.FC = () => {
     setRoleCodeError('');
 
     try {
-      const response = await fetch(`http://localhost:5001/functions/v1/validate-role-code`, {
+      const response = await fetch(`/api/functions/v1/validate-role-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: code.trim() }),

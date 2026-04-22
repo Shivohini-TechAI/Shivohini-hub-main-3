@@ -6,7 +6,7 @@ interface CostingTableProps {
   projectId: string;
 }
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 const getCurrencySymbol = (currency: string) => {
   switch (currency) {

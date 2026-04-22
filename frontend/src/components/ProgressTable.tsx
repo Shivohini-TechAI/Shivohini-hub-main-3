@@ -3,7 +3,7 @@ import { Plus, Edit, Trash2, TrendingUp } from 'lucide-react';
 import { useProjects } from '../contexts/ProjectContext';
 import { useAuth } from '../hooks/useAuth';
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 interface ProgressStep {
   id: string;

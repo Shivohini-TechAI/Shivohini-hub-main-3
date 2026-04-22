@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertCircle, Users } from 'lucide-react';
 import { useProjects } from '../contexts/ProjectContext';
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 interface CreateProjectModalProps {
   onClose: () => void;

@@ -6,7 +6,7 @@ interface TaskListProps {
   projectId: string;
 }
 
-const API = "http://localhost:5001";
+const API = "/api";
 
 const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
   const { user } = useAuth();
