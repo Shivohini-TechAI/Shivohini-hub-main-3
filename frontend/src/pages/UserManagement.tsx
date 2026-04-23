@@ -26,7 +26,7 @@ const UserManagement: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setAllUsers(safeArray(res.data));
+      setAllUsers(Array.isArray(res.data) ? res.data : []);
 
     } catch (err) {
       console.error("Error fetching users:", err);

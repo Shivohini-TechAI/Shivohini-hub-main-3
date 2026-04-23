@@ -31,13 +31,13 @@ const PersonalTodos: React.FC = () => {
 
       const data = Array.isArray(res.data) ? res.data : [];
 
-      const formatted: Todo[] = safeArray(res.data).map((t) => ({
-        id: t.id,
-        title: t.title,
-        dueDate: t.due_date || undefined,
-        completed: t.completed,
-        createdAt: t.created_at
-      }));
+const formatted: Todo[] = data.map((t) => ({
+  id: t.id,
+  title: t.title,
+  dueDate: t.due_date || undefined,
+  completed: t.completed,
+  createdAt: t.created_at
+}));
 
       setTodos(formatted);
     } catch (err) {
