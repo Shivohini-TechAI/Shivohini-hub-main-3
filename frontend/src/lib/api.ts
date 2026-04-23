@@ -40,6 +40,13 @@ export const auth = {
   }),
 };
 
+export const safeArray = (data: any) => {
+  if (Array.isArray(data)) return data;
+
+  console.warn("⚠️ Expected array but got:", data);
+  return [];
+};
+
 // -------- STORAGE MOCK --------
 
 export const getFileUrl = (path: string) => {

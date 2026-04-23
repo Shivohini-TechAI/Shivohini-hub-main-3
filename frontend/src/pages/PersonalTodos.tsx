@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, CheckCircle, Circle, Calendar, Edit, Trash2, CheckSquare } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { safeArray } from "../lib/api";
 import api from '../lib/api';
 
 interface Todo {
@@ -26,9 +27,11 @@ const PersonalTodos: React.FC = () => {
   // ✅ LOAD TASKS FROM BACKEND
   const loadTasks = async () => {
     try {
-      const res = await api.get<any[]>("/tasks");
+      const res = await api.get("/tasks");
 
-      const formatted: Todo[] = res.data.map((t) => ({
+      const data = Array.isArray(res.data) ? res.data : [];
+
+      const formatted: Todo[] = safeArray(res.data).map((t) => ({
         id: t.id,
         title: t.title,
         dueDate: t.due_date || undefined,

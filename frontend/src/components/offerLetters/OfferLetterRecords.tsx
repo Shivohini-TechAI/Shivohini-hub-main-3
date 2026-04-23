@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Eye, Edit2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { safeArray } from "../../lib/api";
 import { useAuth } from '../../hooks/useAuth';
 import dayjs from 'dayjs';
 import { getOfferLetters, deleteOfferLetter, type OfferLetter } from '../../services/offerLetters';
@@ -34,7 +35,7 @@ const OfferLetterRecords: React.FC<OfferLetterRecordsProps> = ({ onView, onEdit,
       setError(null);
 
       const data = await getOfferLetters();
-      setOfferLetters((data as OfferLetter[]) || []);
+      setOfferLetters(safeArray(data));
     } catch (err) {
       console.error('Error loading offer letters:', err);
       setError('Failed to load offer letters');
@@ -210,7 +211,7 @@ const OfferLetterRecords: React.FC<OfferLetterRecordsProps> = ({ onView, onEdit,
 
             {/* ===================== TABLE BODY ===================== */}
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {offerLetters.map((offer) => (
+              {safeArray(offerLetters).map((offer) => (
                 <tr
                   key={offer.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700/50"

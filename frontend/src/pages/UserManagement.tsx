@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trash2, Edit } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { safeArray } from "../lib/api";
 import api from "../lib/api";
 
 const UserManagement: React.FC = () => {
@@ -25,7 +26,7 @@ const UserManagement: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setAllUsers(res.data);
+      setAllUsers(safeArray(res.data));
 
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -40,7 +41,7 @@ const UserManagement: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setTasks(res.data);
+      setTasks(safeArray(res.data));
 
     } catch (err) {
       console.error("Error fetching tasks:", err);
@@ -48,7 +49,7 @@ const UserManagement: React.FC = () => {
   };
 
   // ================= FILTER =================
-  const filteredUsers = allUsers.filter(u => {
+  const filteredUsers = safeArray(allUsers).filter(u => {
     const matchesSearch =
       u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
