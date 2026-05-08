@@ -50,8 +50,8 @@ app.use("/invoice-pdf", invoicePdfRoutes);
 app.use("/analytics", analyticsRoutes);
 app.use("/progress", progressRoutes);
 app.use("/costing", costingRoutes);
-app.use("/api/offer-letters", offerLettersRoutes);
-app.use("/api/appreciation-certificates", appreciationRoutes);
+app.use("/offer-letters", offerLettersRoutes);
+app.use("/appreciation-certificates", appreciationRoutes);
 app.use("/notifications", notificationRoutes);
 
 app.use('/storage/v1/object/public', express.static(path.join(process.cwd(), 'uploads')));
