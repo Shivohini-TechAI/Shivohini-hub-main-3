@@ -8,14 +8,13 @@ const ResetPasswordPage = () => {
 
   const navigate = useNavigate();
 
-  // ✅ FIX: use React Router hook
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
   const handleReset = async () => {
     setError("");
 
-    console.log("🔐 TOKEN FROM URL:", token); // 👈 DEBUG
+    console.log("🔐 TOKEN FROM URL:", token);
 
     if (!token) {
       setError("Invalid or missing reset token");
@@ -61,10 +60,10 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow border border-gray-200">
 
-        <h2 className="text-xl font-bold text-center mb-4">
+        <h2 className="text-xl font-bold text-center mb-4 text-gray-900">
           Reset Password
         </h2>
 
@@ -75,14 +74,14 @@ const ResetPasswordPage = () => {
         <input
           type="password"
           placeholder="Enter new password"
-          className="w-full border p-3 mb-4 rounded"
+          className="w-full border border-gray-300 p-3 mb-4 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
           onChange={(e) => setPassword(e.target.value)}
         />
 
         <button
           onClick={handleReset}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded"
+          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all"
         >
           {loading ? "Resetting..." : "Reset Password"}
         </button>
