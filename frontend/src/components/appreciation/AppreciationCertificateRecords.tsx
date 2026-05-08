@@ -31,7 +31,7 @@ const AppreciationCertificateRecords: React.FC<Props> = ({ onView, onEdit, onRef
   const fetchData = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await api.get<Certificate[]>("/api/appreciation-certificates", {
+      const res = await api.get<Certificate[]>("/appreciation-certificates", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData(res.data);
@@ -50,7 +50,7 @@ const AppreciationCertificateRecords: React.FC<Props> = ({ onView, onEdit, onRef
     setDeletingId(id);
     try {
       const token = localStorage.getItem("token");
-      await api.delete(`/api/appreciation-certificates/${id}`, {
+      await api.delete(`/appreciation-certificates/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Certificate deleted successfully");
