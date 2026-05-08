@@ -151,7 +151,7 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
               </label>
               <input
                 type="date"
-                value={offerData.issueDate}
+                value={offerData.issueDate ? offerData.issueDate.split("T")[0] : ""}
                 onChange={(e) => updateOfferData('issueDate', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />
@@ -163,7 +163,7 @@ const OfferLetterEditor: React.FC<OfferLetterEditorProps> = ({
               </label>
               <input
                 type="date"
-                value={offerData.acceptanceDeadline}
+                value={offerData.acceptanceDeadline ? offerData.acceptanceDeadline.split("T")[0] : ""}
                 onChange={(e) => updateOfferData('acceptanceDeadline', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
               />

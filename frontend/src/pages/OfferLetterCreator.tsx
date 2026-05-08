@@ -15,7 +15,7 @@ export interface OfferLetterData {
 }
 
 const OfferLetterCreator: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'preview' | 'records'>('preview');
+  const [activeTab, setActiveTab] = useState<'preview' | 'records'>('records');
   const [offerData, setOfferData] = useState<OfferLetterData>({
     candidateName: '',
     candidateEmail: '',
@@ -31,6 +31,7 @@ const OfferLetterCreator: React.FC = () => {
 
   const handlePreview = () => {
     setShowPreview(true);
+    setActiveTab('preview'); // ✅ switches to preview tab
   };
 
   const handleView = (offer: OfferLetter) => {
@@ -83,21 +84,9 @@ const OfferLetterCreator: React.FC = () => {
 
         {/* Right — Preview / Records */}
         <div className="w-1/2 flex flex-col bg-white">
-          {/* Tabs */}
+          {/* Tabs — Records first, Preview second */}
           <div className="flex-shrink-0 bg-white border-b border-gray-200">
             <div className="flex space-x-1 p-2">
-              <button
-                onClick={() => setActiveTab('preview')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  activeTab === 'preview'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <FileText className="h-4 w-4" />
-                <span>Preview</span>
-              </button>
-
               <button
                 onClick={() => setActiveTab('records')}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -109,23 +98,35 @@ const OfferLetterCreator: React.FC = () => {
                 <List className="h-4 w-4" />
                 <span>Offer Records</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab('preview')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'preview'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                <span>Preview</span>
+              </button>
             </div>
           </div>
 
-          {/* ✅ KEY FIX: Both tabs always mounted, toggled via display */}
+          {/* Both tabs always mounted */}
           <div className="flex-1 overflow-hidden">
-            <div className={activeTab === 'preview' ? 'h-full' : 'hidden'}>
-              <OfferLetterPreview
-                ref={offerLetterPreviewRef}
-                offerData={offerData}
-                showPreview={showPreview}
-              />
-            </div>
             <div className={activeTab === 'records' ? 'h-full' : 'hidden'}>
               <OfferLetterRecords
                 onView={handleView}
                 onEdit={handleEdit}
                 refreshTrigger={refreshTrigger}
+              />
+            </div>
+            <div className={activeTab === 'preview' ? 'h-full' : 'hidden'}>
+              <OfferLetterPreview
+                ref={offerLetterPreviewRef}
+                offerData={offerData}
+                showPreview={showPreview}
               />
             </div>
           </div>
