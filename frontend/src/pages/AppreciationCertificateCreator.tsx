@@ -96,7 +96,10 @@ const AppreciationCertificateCreator: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab('preview')}
+                onClick={() => {
+                  setShowPreview(true);
+                  setActiveTab('preview');
+                }}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                   activeTab === 'preview'
                     ? 'bg-blue-600 text-white'

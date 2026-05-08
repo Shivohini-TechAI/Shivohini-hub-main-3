@@ -100,12 +100,15 @@ const OfferLetterCreator: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab('preview')}
+                onClick={() => {
+                  setShowPreview(true);
+                  setActiveTab('preview');
+                }}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                   activeTab === 'preview'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <FileText className="h-4 w-4" />
                 <span>Preview</span>
