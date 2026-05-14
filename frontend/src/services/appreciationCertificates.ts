@@ -1,5 +1,6 @@
 import api from "../lib/api";
 
+// 🔥 FIX: removed /api prefix — server mounts at /appreciation-certificates
 export const createAppreciationCertificate = async (payload: any) => {
   const res = await api.post("/appreciation-certificates", payload);
   return res.data;
