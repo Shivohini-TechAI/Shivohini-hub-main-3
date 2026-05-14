@@ -7,11 +7,13 @@ const router = express.Router();
 // ================= CREATE =================
 router.post("/", requireAuth, async (req, res) => {
   const { recipient_name, designation, appreciation_for, issue_date, joining_date } = req.body;
+
   try {
     const result = await query(
       `INSERT INTO appreciation_certificates
       (recipient_name, designation, appreciation_for, issue_date, joining_date, created_by)
-      VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      VALUES ($1,$2,$3,$4,$5,$6)
+      RETURNING *`,
       [recipient_name, designation || null, appreciation_for, issue_date || null, joining_date || null, req.user.sub]
     );
     res.json(result.rows[0]);
@@ -24,7 +26,9 @@ router.post("/", requireAuth, async (req, res) => {
 // ================= GET ALL =================
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const result = await query(`SELECT * FROM appreciation_certificates ORDER BY created_at DESC`);
+    const result = await query(
+      `SELECT * FROM appreciation_certificates ORDER BY created_at DESC`
+    );
     res.json(result.rows);
   } catch (err) {
     console.error("GET CERT ERROR:", err);
@@ -32,32 +36,52 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// ================= DELETE =================
-router.delete("/:id", requireAuth, async (req, res) => {
+// ================= GET ONE =================
+router.get("/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
   try {
     const result = await query(
-      `DELETE FROM appreciation_certificates
-       WHERE id=$1
-       RETURNING id`,
-      [req.params.id]
+      `SELECT * FROM appreciation_certificates WHERE id = $1`,
+      [id]
     );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("GET ONE CERT ERROR:", err);
+    res.status(500).json({ error: "Failed to fetch certificate" });
+  }
+});
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        error: "Certificate not found"
-      });
-    }
+// ================= UPDATE =================
+router.put("/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { recipient_name, designation, appreciation_for, issue_date, joining_date } = req.body;
 
-    res.json({
-      success: true
-    });
+  try {
+    const result = await query(
+      `UPDATE appreciation_certificates
+       SET recipient_name=$1, designation=$2, appreciation_for=$3, issue_date=$4, joining_date=$5
+       WHERE id=$6
+       RETURNING *`,
+      [recipient_name, designation || null, appreciation_for, issue_date || null, joining_date || null, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("UPDATE CERT ERROR:", err);
+    res.status(500).json({ error: "Failed to update certificate" });
+  }
+});
 
+// ================= DELETE =================
+router.delete("/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await query(`DELETE FROM appreciation_certificates WHERE id = $1`, [id]);
+    res.json({ success: true });
   } catch (err) {
     console.error("DELETE CERT ERROR:", err);
-
-    res.status(500).json({
-      error: "Failed to delete certificate"
-    });
+    res.status(500).json({ error: "Failed to delete certificate" });
   }
 });
 
