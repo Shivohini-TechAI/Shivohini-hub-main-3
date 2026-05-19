@@ -80,7 +80,7 @@ const ForgotPasswordPage: React.FC = () => {
                     setEmail(e.target.value);
                     setEmailError('');
                   }}
-                  className="w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700"
+                  className="w-full px-4 py-3 border rounded-lg bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-purple-500"
                   placeholder="Enter your email"
                 />
 
