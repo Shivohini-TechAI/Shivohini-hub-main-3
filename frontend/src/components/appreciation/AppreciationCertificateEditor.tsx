@@ -94,14 +94,14 @@ const AppreciationCertificateEditor: React.FC<AppreciationCertificateEditorProps
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-white dark:bg-gray-800 p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+    <div className="h-full overflow-y-auto bg-white p-6 space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">
         Appreciation Certificate Details
       </h2>
 
       {/* Recipient Info */}
-      <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg space-y-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+      <div className="h-full overflow-y-auto bg-white p-6 space-y-6">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
           Recipient Information
         </h3>
         <input
@@ -109,20 +109,20 @@ const AppreciationCertificateEditor: React.FC<AppreciationCertificateEditorProps
           placeholder="Recipient Name"
           value={certificateData.recipientName}
           onChange={(e) => updateCertificateData('recipientName', e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border rounded-lg bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-blue-500"
         />
         <input
           type="text"
           placeholder="Designation"
           value={certificateData.designation || ''}
           onChange={(e) => updateCertificateData('designation', e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border rounded-lg bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       {/* Appreciation Info */}
-      <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg space-y-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+      <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
           Appreciation Details
         </h3>
         <textarea
@@ -130,33 +130,33 @@ const AppreciationCertificateEditor: React.FC<AppreciationCertificateEditorProps
           placeholder="Reason for appreciation"
           value={certificateData.appreciationFor}
           onChange={(e) => updateCertificateData('appreciationFor', e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border rounded-lg bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       {/* Joining Date */}
-      <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg space-y-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+      <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
           Joining Date
         </h3>
         <input
           type="date"
           value={certificateData.joiningDate || ''}
           onChange={(e) => updateCertificateData('joiningDate', e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border rounded-lg bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       {/* Certificate Date */}
-      <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg space-y-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+      <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
           Certificate Date
         </h3>
         <input
           type="date"
           value={certificateData.issueDate}
           onChange={(e) => updateCertificateData('issueDate', e.target.value)}
-          className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border rounded-lg bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-blue-500"
         />
       </div>
 

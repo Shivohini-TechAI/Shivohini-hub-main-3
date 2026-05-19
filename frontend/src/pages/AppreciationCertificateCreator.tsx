@@ -41,7 +41,7 @@ const AppreciationCertificateCreator: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 lg:ml-64 top-16 flex flex-col">
+    <div className="fixed inset-0 lg:ml-64 top-16 flex flex-col bg-white">
 
       {/* HEADER */}
       <div className="bg-white dark:bg-gray-800 border-b px-6 py-3">
@@ -51,10 +51,10 @@ const AppreciationCertificateCreator: React.FC = () => {
       </div>
 
       {/* BODY */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden bg-white">
 
         {/* LEFT — EDITOR */}
-        <div className="w-1/2 border-r border-gray-200 dark:border-gray-700">
+        <div className="w-1/2 border-r border-gray-200 bg-white">
           <AppreciationCertificateEditor
             certificateData={certificateData}
             updateCertificateData={updateCertificateData}
@@ -63,10 +63,10 @@ const AppreciationCertificateCreator: React.FC = () => {
         </div>
 
         {/* RIGHT — PREVIEW / RECORDS */}
-        <div className="w-1/2 flex flex-col">
+        <div className="w-1/2 flex flex-col bg-white">
 
           {/* TABS */}
-          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-white border-b border-gray-200">
             <div className="flex space-x-1 p-2">
               <button
                 onClick={() => setActiveTab('preview')}
@@ -95,7 +95,7 @@ const AppreciationCertificateCreator: React.FC = () => {
           </div>
 
           {/* CONTENT */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto bg-white">
             {activeTab === 'preview' ? (
               <AppreciationCertificatePreview
                 certificateData={certificateData}
