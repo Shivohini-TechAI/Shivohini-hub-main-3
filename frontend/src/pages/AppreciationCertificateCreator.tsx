@@ -44,8 +44,8 @@ const AppreciationCertificateCreator: React.FC = () => {
     <div className="fixed inset-0 lg:ml-64 top-16 flex flex-col bg-white">
 
       {/* HEADER */}
-      <div className="bg-white dark:bg-gray-800 border-b px-6 py-3">
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+      <div className="bg-white border-b px-6 py-3">
+        <h1 className="text-xl font-semibold text-gray-900">
           Appreciation Certificate Creator
         </h1>
       </div>
