@@ -4,11 +4,11 @@ const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // MUST be app password
+    pass: process.env.EMAIL_PASS,
   },
 });
 
-// ✅ Check connection
+// ✅ Verify Mail Server
 transporter.verify((error, success) => {
   if (error) {
     console.error("❌ Mail server error:", error);
@@ -16,6 +16,10 @@ transporter.verify((error, success) => {
     console.log("✅ Mail server ready");
   }
 });
+
+// ===============================
+// PASSWORD RESET EMAIL
+// ===============================
 
 export const sendResetEmail = async (to, link) => {
   try {
@@ -60,9 +64,132 @@ export const sendResetEmail = async (to, link) => {
       `,
     });
 
-    console.log("📨 Email sent:", info.response);
+    console.log("📨 Reset email sent:", info.response);
 
   } catch (err) {
-    console.error("❌ Email send error:", err);
+    console.error("❌ Reset email error:", err);
+  }
+};
+
+// ===============================
+// DAILY ADMIN TASK REPORT EMAIL
+// ===============================
+
+export const sendAdminTaskReport = async (to, tasks) => {
+  try {
+
+    const overdueTasks = tasks.filter(
+      (task) => task.status === "overdue"
+    );
+
+    const todayTasks = tasks.filter(
+      (task) => task.status === "today"
+    );
+
+    const overdueHtml = overdueTasks.map(task => `
+      <tr>
+        <td style="padding:10px;border:1px solid #ddd;">${task.title}</td>
+        <td style="padding:10px;border:1px solid #ddd;">${task.user_name}</td>
+        <td style="padding:10px;border:1px solid #ddd;color:red;">
+          ${task.due_date}
+        </td>
+      </tr>
+    `).join("");
+
+    const todayHtml = todayTasks.map(task => `
+      <tr>
+        <td style="padding:10px;border:1px solid #ddd;">${task.title}</td>
+        <td style="padding:10px;border:1px solid #ddd;">${task.user_name}</td>
+        <td style="padding:10px;border:1px solid #ddd;color:orange;">
+          ${task.due_date}
+        </td>
+      </tr>
+    `).join("");
+
+    const info = await transporter.sendMail({
+      from: `"Shivohini Hub" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: "📋 Daily Due Task Report - Shivohini Hub",
+
+      html: `
+        <div style="font-family: Arial; padding:20px;">
+
+          <h1 style="color:#2563eb;">
+            📋 Daily Task Report
+          </h1>
+
+          <p>
+            Here is today's pending task summary.
+          </p>
+
+          ${
+            overdueTasks.length > 0
+              ? `
+              <h2 style="color:red;">🚨 Overdue Tasks</h2>
+
+              <table 
+                style="
+                  border-collapse: collapse;
+                  width:100%;
+                  margin-bottom:30px;
+                "
+              >
+                <tr style="background:#f3f4f6;">
+                  <th style="padding:10px;border:1px solid #ddd;">Task</th>
+                  <th style="padding:10px;border:1px solid #ddd;">Assigned To</th>
+                  <th style="padding:10px;border:1px solid #ddd;">Due Date</th>
+                </tr>
+
+                ${overdueHtml}
+              </table>
+            `
+              : `
+              <p style="color:green;">
+                ✅ No overdue tasks.
+              </p>
+            `
+          }
+
+          ${
+            todayTasks.length > 0
+              ? `
+              <h2 style="color:#f59e0b;">⏰ Due Today</h2>
+
+              <table 
+                style="
+                  border-collapse: collapse;
+                  width:100%;
+                "
+              >
+                <tr style="background:#f3f4f6;">
+                  <th style="padding:10px;border:1px solid #ddd;">Task</th>
+                  <th style="padding:10px;border:1px solid #ddd;">Assigned To</th>
+                  <th style="padding:10px;border:1px solid #ddd;">Due Date</th>
+                </tr>
+
+                ${todayHtml}
+              </table>
+            `
+              : `
+              <p style="color:green;">
+                ✅ No tasks due today.
+              </p>
+            `
+          }
+
+          <hr style="margin-top:40px;" />
+
+          <p style="font-size:12px;color:gray;">
+            Shivohini Hub Automated Notification System
+          </p>
+
+        </div>
+      `,
+    });
+
+    console.log("📨 Admin task report sent:", info.response);
+
+  } catch (err) {
+    console.error("❌ Admin task report email error:", err);
   }
 };
