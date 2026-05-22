@@ -18,11 +18,14 @@ router.get("/", requireAuth, async (req, res) => {
         `SELECT p.* FROM projects p
          WHERE p.archived_at IS NULL
          AND (
-           p.created_by = $1::uuid
-           OR $1::uuid = ANY(p.assigned_members)
-           OR EXISTS (
-             SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = $1::uuid
-           )
+            p.created_by::text = $1
+            OR $1 = ANY(p.assigned_members)
+            OR EXISTS (
+              SELECT 1
+              FROM project_members pm
+              WHERE pm.project_id = p.id
+              AND pm.user_id::text = $1
+            )
          )
          ORDER BY p.created_at DESC`,
         [req.user.sub]
@@ -50,8 +53,8 @@ router.get("/archived", requireAuth, async (req, res) => {
         `SELECT p.* FROM projects p
          WHERE p.archived_at IS NOT NULL
          AND (
-           p.created_by = $1::uuid
-           OR $1::uuid = ANY(p.assigned_members)
+            p.created_by::text = $1
+            OR $1 = ANY(p.assigned_members)
          )
          ORDER BY p.archived_at DESC`,
         [req.user.sub]
@@ -89,8 +92,8 @@ router.get("/stats", requireAuth, async (req, res) => {
          FROM projects
          WHERE archived_at IS NULL
          AND (
-          created_by = $1::uuid
-          OR $1::uuid = ANY(assigned_members)
+          created_by::text = $1
+          OR $1 = ANY(assigned_members)
         )`,
         [req.user.sub]
       );
