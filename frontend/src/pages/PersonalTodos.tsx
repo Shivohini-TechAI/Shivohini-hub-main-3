@@ -25,27 +25,18 @@ const PersonalTodos: React.FC = () => {
 
   // ✅ LOAD TASKS FROM BACKEND — only tasks assigned to current user
   const loadTasks = async () => {
-    try {
-      const res = await api.get("/tasks");
+  try {
+    const res = await api.get("/tasks");
+    const data = Array.isArray(res.data) ? res.data : [];
 
-      const data = Array.isArray(res.data) ? res.data : [];
+    console.log("🔍 Current user id:", user?.id);
+    console.log("🔍 All tasks assigned_to values:", data.map((t: any) => t.assigned_to));
 
-      // Only show tasks where assigned_to matches the logged-in user's id
-      const myTasks = data.filter((t: any) => t.assigned_to === user?.id);
-
-      const formatted: Todo[] = myTasks.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        dueDate: t.due_date || undefined,
-        completed: t.completed,
-        createdAt: t.created_at
-      }));
-
-      setTodos(formatted);
-    } catch (err) {
-      console.error("❌ LOAD TASK ERROR:", err);
-    }
-  };
+    const myTasks = data.filter((t: any) => t.assigned_to === user?.id);
+    console.log("🔍 My filtered tasks:", myTasks);
+    // ... rest stays same
+  }
+}
 
   useEffect(() => {
     if (user) loadTasks();
