@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, CheckCircle, Circle, Calendar, Edit, Trash2, CheckSquare } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { safeArray } from "../lib/api";
 import api from '../lib/api';
 
 interface Todo {
@@ -24,20 +23,23 @@ const PersonalTodos: React.FC = () => {
     dueDate: ''
   });
 
-  // ✅ LOAD TASKS FROM BACKEND
+  // ✅ LOAD TASKS FROM BACKEND — only tasks assigned to current user
   const loadTasks = async () => {
     try {
       const res = await api.get("/tasks");
 
       const data = Array.isArray(res.data) ? res.data : [];
 
-const formatted: Todo[] = data.map((t) => ({
-  id: t.id,
-  title: t.title,
-  dueDate: t.due_date || undefined,
-  completed: t.completed,
-  createdAt: t.created_at
-}));
+      // Only show tasks where assigned_to matches the logged-in user's id
+      const myTasks = data.filter((t: any) => t.assigned_to === user?.id);
+
+      const formatted: Todo[] = myTasks.map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        dueDate: t.due_date || undefined,
+        completed: t.completed,
+        createdAt: t.created_at
+      }));
 
       setTodos(formatted);
     } catch (err) {
@@ -68,7 +70,7 @@ const formatted: Todo[] = data.map((t) => ({
         });
       }
 
-      await loadTasks(); // 🔥 refresh from DB
+      await loadTasks();
       setShowAddForm(false);
       setEditingId(null);
       setFormData({ title: '', dueDate: '' });
