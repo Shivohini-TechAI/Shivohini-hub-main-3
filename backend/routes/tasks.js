@@ -51,7 +51,11 @@ router.get("/", requireAuth, async (req, res) => {
       result = await query(`SELECT * FROM tasks ORDER BY created_at DESC`);
     } else {
       result = await query(
-        `SELECT * FROM tasks WHERE assigned_to = $1 OR created_by = $1 ORDER BY created_at DESC`,
+        `SELECT *
+          FROM tasks
+          WHERE project_id IS NULL
+          AND assigned_to = $1
+          ORDER BY created_at DESC`,
         [req.user.sub]
       );
     }
