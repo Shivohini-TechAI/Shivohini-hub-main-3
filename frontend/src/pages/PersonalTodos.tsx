@@ -31,6 +31,9 @@ const PersonalTodos: React.FC = () => {
 
     console.log("🔍 Current user id:", user?.id);
     console.log("🔍 All tasks assigned_to values:", data.map((t: any) => t.assigned_to));
+    console.log("🔍 USER OBJECT:", user);
+    console.log("🔍 user?.id:", user?.id);
+    console.log("🔍 ALL TASKS:", data);
 
     const myTasks = data.filter((t: any) => t.assigned_to === user?.id);
     console.log("🔍 My filtered tasks:", myTasks);
