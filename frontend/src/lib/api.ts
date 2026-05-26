@@ -3,18 +3,13 @@ import axios from "axios";
 // -------- AXIOS INSTANCE --------
 
 const api = axios.create({
-  baseURL: "http://194.164.151.212:5001", // ✅ FIXED
+  baseURL: "http://194.164.151.212:5001",
 });
 
 // -------- ADD TOKEN AUTOMATICALLY --------
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-
-  // ✅ FIX: ensure headers exists
-  if (!config.headers) {
-    config.headers = {};
-  }
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -41,7 +36,6 @@ export const auth = {
 
 export const safeArray = (data: any) => {
   if (Array.isArray(data)) return data;
-
   console.warn("⚠️ Expected array but got:", data);
   return [];
 };

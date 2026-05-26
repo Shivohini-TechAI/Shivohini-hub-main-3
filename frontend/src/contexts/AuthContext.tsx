@@ -6,8 +6,6 @@ export interface User {
   email: string;
   name: string;
   role: 'admin' | 'project_manager' | 'team_leader' | 'team_member';
-
-  // ✅ ADDED
   phone?: string;
   whatsapp?: string;
   strongAreas?: string;
@@ -28,12 +26,9 @@ interface SignupData {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signup: (data: SignupData) => Promise<boolean>;
   logout: () => Promise<void>;
-
-  // ✅ NEW
   updateUserProfile: (id: string, data: any) => Promise<any>;
 }
 
@@ -51,7 +46,7 @@ export const useAuth = () => {
 // ================= PROVIDER =================
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // ✅ START as true — wait until session check is done
 
   // ================= LOGIN =================
   const login = async (email: string, password: string) => {
@@ -60,9 +55,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const res = await fetch(`${API}/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
       });
 
@@ -89,9 +82,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const res = await fetch(`${API}/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
       });
 
@@ -133,7 +124,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error(result.error || "Update failed");
       }
 
-      // ✅ Update local state instantly
       setUser(prev => prev ? { ...prev, ...result } : prev);
 
       return result;
@@ -151,26 +141,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // ================= INIT SESSION =================
+  // ✅ loading starts true, only set false AFTER session check completes
+  // This prevents components from rendering with user=null and skipping data fetches
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+
+    if (!token) {
+      setLoading(false); // no token = not logged in, done
+      return;
+    }
 
     fetch(`${API}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
         if (data.user) {
           setUser(data.user);
+        } else {
+          // token invalid/expired
+          localStorage.removeItem("token");
+          setUser(null);
         }
       })
       .catch(() => {
         localStorage.removeItem("token");
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false); // ✅ always set false when done
       });
 
   }, []);
+
+  // ✅ Don't render children until session check is complete
+  // This prevents useEffect([user]) in child components firing with user=null
+  if (loading) return null;
 
   return (
     <AuthContext.Provider
@@ -180,7 +186,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         login,
         signup,
         logout,
-        updateUserProfile // ✅ INCLUDED
+        updateUserProfile
       }}
     >
       {children}
