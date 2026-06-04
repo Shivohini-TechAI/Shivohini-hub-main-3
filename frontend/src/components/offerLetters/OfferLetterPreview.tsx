@@ -260,7 +260,7 @@ const OfferLetterPreview = forwardRef<OfferLetterPreviewRef, OfferLetterPreviewP
                 <h2 className="text-base font-bold mb-2">Terms & Conditions</h2>
                 <ul className="space-y-2 ml-6">
                   <li>
-                    <span className="font-bold">Internship Nature:</span> This is a temporary role offered for a fixed duration and does not guarantee full-time employment. However, based on performance, full-time opportunities may be considered.
+                    <span className="font-bold">Internship Nature:</span> This is a temporary role offered for a fixed duration (minimum 3 months to a maximum of 1 year, extendable at the founder's discretion) and does not guarantee full-time employment. However, based on performance, full-time opportunities may be considered.
                   </li>
                   <li>
                     <span className="font-bold">Confidentiality & Intellectual Property:</span> You must maintain strict confidentiality regarding company data, projects, and intellectual property. Any work produced during the internship will remain the sole property of <span className="font-bold">Shivohini TechAI LLP</span>.
