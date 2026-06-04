@@ -8,6 +8,7 @@ import TaskList from '../components/TaskList';
 import ProgressTable from '../components/ProgressTable';
 import CostingTable from '../components/CostingTable';
 import ClientPayments from '../components/ClientPayments';
+import MeetingLog from '../components/meetingLog';
 
 const API = "/api";
 
@@ -17,7 +18,7 @@ const ProjectDetails: React.FC = () => {
   const { projects, updateProject, archiveProject, completeProject } = useProjects();
   const { user } = useAuth();
 
-  const [activeModule, setActiveModule] = useState<'overview' | 'tasks' | 'notes' | 'progress' | 'costing' | 'payments'>('overview');
+  const [activeModule, setActiveModule] = useState<'overview' | 'tasks' | 'notes' | 'progress' | 'costing' | 'payments' | 'meeting-log'>('overview');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
@@ -96,7 +97,6 @@ const ProjectDetails: React.FC = () => {
   if (!project) {
     return (
       <div className="max-w-6xl mx-auto">
-        {/* 🔥 Search for project by name when not found */}
         <div className="mb-6">
           <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4">
             <ArrowLeft className="h-5 w-5" /> Back to Dashboard
@@ -191,6 +191,7 @@ const ProjectDetails: React.FC = () => {
     { key: 'progress', label: 'Progress' },
     { key: 'costing', label: 'Costing' },
     { key: 'payments', label: 'Payments' },
+    { key: 'meeting-log', label: 'Meeting Log' },
   ];
 
   return (
@@ -204,33 +205,6 @@ const ProjectDetails: React.FC = () => {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-
-        {/* 🔥 Search by project name inline */}
-        {/* <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search project by name..."
-            value={projectSearch}
-            onChange={e => setProjectSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          {projectSearch && searchedProjects.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-              {searchedProjects.slice(0, 5).map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => { navigate(`/project/${p.id}`); setProjectSearch(''); }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
-                >
-                  <p className="font-medium text-gray-900">{p.title}</p>
-                  <p className="text-xs text-gray-400 capitalize">{p.status.replace('_', ' ')}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div> */}
-
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
           <p className="text-gray-500 text-sm">{project.description}</p>
@@ -424,6 +398,13 @@ const ProjectDetails: React.FC = () => {
         {activeModule === 'progress' && <ProgressTable projectId={project.id} />}
         {activeModule === 'costing' && <CostingTable projectId={project.id} />}
         {activeModule === 'payments' && <ClientPayments projectId={project.id} />}
+        {activeModule === 'meeting-log' && (
+          <MeetingLog
+            projectId={project.id}
+            assignedMembers={project.assignedMembers || []}
+            allUsers={allUsers}
+          />
+        )}
       </div>
 
       {/* EDIT MODAL */}

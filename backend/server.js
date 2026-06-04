@@ -15,6 +15,7 @@ import taskRoutes from "./routes/tasks.js";
 import userRoutes from "./routes/users.js";
 import clientRoutes from "./routes/clients.js";
 import clientStageNotesRoutes from "./routes/clientStageNotes.js";
+import meetingAttendanceRoutes from "./routes/meetingAttendance.js";
 
 import invoiceRoutes from './routes/invoices.js';
 import presetRoutes from "./routes/invoicePresets.js";
@@ -57,6 +58,7 @@ app.use("/tasks", taskRoutes);
 app.use("/users", userRoutes);
 app.use("/clients", clientRoutes);
 app.use("/client-stage-notes", clientStageNotesRoutes);
+app.use("/meeting-log", meetingAttendanceRoutes);
 
 app.use('/invoices', invoiceRoutes);
 app.use("/invoice-presets", presetRoutes);
