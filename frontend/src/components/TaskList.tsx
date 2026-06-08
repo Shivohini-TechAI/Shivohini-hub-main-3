@@ -4,11 +4,13 @@ import { useAuth } from '../hooks/useAuth';
 
 interface TaskListProps {
   projectId: string;
+  assignedMembers: string[]; // ✅ ADDED: only show project members in dropdown
 }
 
 const API = "/api";
 
-const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
+// ✅ ADDED: same pattern as MeetingLog
+const TaskList: React.FC<TaskListProps> = ({ projectId, assignedMembers }) => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -18,6 +20,9 @@ const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
 
   const token = localStorage.getItem("token");
   const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  // ✅ ADDED: filter allUsers to only project members — same as MeetingLog
+  const projectMembers = allUsers.filter(u => assignedMembers.includes(u.id));
 
   const fetchTasks = async () => {
     try {
@@ -137,13 +142,14 @@ const TaskList: React.FC<TaskListProps> = ({ projectId }) => {
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <div className="grid grid-cols-2 gap-3">
+            {/* ✅ CHANGED: was allUsers.map, now projectMembers.map */}
             <select
               value={formData.assignedTo}
               onChange={e => setFormData(p => ({ ...p, assignedTo: e.target.value }))}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Assign to...</option>
-              {allUsers.map(u => (
+              {projectMembers.map(u => (
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
             </select>

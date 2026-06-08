@@ -8,7 +8,7 @@ import TaskList from '../components/TaskList';
 import ProgressTable from '../components/ProgressTable';
 import CostingTable from '../components/CostingTable';
 import ClientPayments from '../components/ClientPayments';
-import MeetingLog from '../components/meetingLog';
+import MeetingLog from '../components/MeetingLog'; // ✅ FIXED: was '../components/meetingLog' (wrong case)
 
 const API = "/api";
 
@@ -26,7 +26,6 @@ const ProjectDetails: React.FC = () => {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [projectTasks, setProjectTasks] = useState<any[]>([]);
 
-  // 🔥 Project search within page
   const [projectSearch, setProjectSearch] = useState('');
   const allActiveProjects = projects.filter(p => !p.archivedAt);
   const searchedProjects = projectSearch.trim()
@@ -393,7 +392,8 @@ const ProjectDetails: React.FC = () => {
           </div>
         )}
 
-        {activeModule === 'tasks' && <TaskList projectId={project.id} />}
+        {/* ✅ FIXED: added assignedMembers prop to TaskList */}
+        {activeModule === 'tasks' && <TaskList projectId={project.id} assignedMembers={project.assignedMembers || []} />}
         {activeModule === 'notes' && <MeetingNotes projectId={project.id} />}
         {activeModule === 'progress' && <ProgressTable projectId={project.id} />}
         {activeModule === 'costing' && <CostingTable projectId={project.id} />}
