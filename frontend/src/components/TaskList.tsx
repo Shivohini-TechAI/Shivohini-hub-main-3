@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, CheckCircle, Circle, Calendar, Edit, Trash2, ClipboardList } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
+
 interface TaskListProps {
   projectId: string;
   assignedMembers: string[]; // ✅ ADDED: only show project members in dropdown
