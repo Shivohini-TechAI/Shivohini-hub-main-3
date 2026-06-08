@@ -3,7 +3,7 @@ import axios from "axios";
 // -------- AXIOS INSTANCE --------
 
 const api = axios.create({
-  baseURL: "http://194.164.151.212:5001",
+  baseURL: "/",
 });
 
 // -------- ADD TOKEN AUTOMATICALLY --------

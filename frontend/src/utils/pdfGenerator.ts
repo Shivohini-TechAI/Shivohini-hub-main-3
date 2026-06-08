@@ -1,7 +1,7 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-const API = "http://localhost:5000";
+const API = "/api";
 
 interface GeneratePDFOptions {
   invoiceNumber: string;

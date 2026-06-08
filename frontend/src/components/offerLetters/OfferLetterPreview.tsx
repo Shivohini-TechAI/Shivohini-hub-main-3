@@ -128,7 +128,7 @@ const OfferLetterPreview = forwardRef<OfferLetterPreviewRef, OfferLetterPreviewP
             formData.append('pdf', pdfBlob, filename);
 
             const token = localStorage.getItem('token');
-            await fetch(`http://localhost:5000/api/offer-letters/${offerId}/pdf`, {
+            await fetch(`/api/offer-letters/${offerId}/pdf`, {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}` },
               body: formData,
