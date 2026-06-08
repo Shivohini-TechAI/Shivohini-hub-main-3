@@ -1,4 +1,4 @@
-import React, { useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { OfferLetterData } from '../../pages/OfferLetterCreator';
 import dayjs from 'dayjs';
 import html2canvas from 'html2canvas';
